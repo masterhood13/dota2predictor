@@ -3,14 +3,16 @@
 # This code is licensed under the MIT License. See LICENSE file for details.
 
 
-
 from time import sleep
 import pandas as pd
 import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import opendota_key, steam_api_key
-from ml.model import Dota2MatchPredictor, MainML
+from ml.model import MainML
 from structure.helpers import find_dict_in_list, prepare_data
+
+main_ml = MainML(None, "xgb_model.pkl")
+main_ml.load_model()
 
 
 class Dota2API:
@@ -88,9 +90,6 @@ class Dota2API:
 
 class CallbackTriggers:
     dota2_get_current_matches_trigger = "cb_dota2"
-    player_trigger = "cb_player"
-    hero_trigger = "cb_hero"
-    side_trigger = "cb_side"
 
 
 class Icons:
@@ -109,55 +108,6 @@ class Buttons:
         "No matches found try again later",
         callback_data=CallbackTriggers.dota2_get_current_matches_trigger,
     )
-
-    dire_button = InlineKeyboardButton(
-        f"Dire {Icons.direIcon}", callback_data=CallbackTriggers.side_trigger
-    )
-    radiant_button = InlineKeyboardButton(
-        f"Radiant {Icons.radiantIcon}", callback_data=CallbackTriggers.side_trigger
-    )
-
-    @staticmethod
-    def team_button(team_name):
-        return InlineKeyboardButton(
-            text=str(team_name),
-            callback_data=f"{CallbackTriggers.player_trigger},'{team_name}']",
-        )
-
-    @staticmethod
-    def hero_button(hero_name):
-        return InlineKeyboardButton(
-            text=str(hero_name),
-            callback_data=f'{CallbackTriggers.hero_trigger},"{hero_name}"]',
-        )
-
-    @staticmethod
-    def hero_teamplay_button(hero_name, player):
-        return InlineKeyboardButton(
-            text=str(hero_name),
-            callback_data=f"{CallbackTriggers.hero_trigger},\"{hero_name}\",'{player}']",
-        )
-
-    @staticmethod
-    def predict_button(predict):
-        return InlineKeyboardButton(
-            text=f"Radiant win prob: {predict}",
-            callback_data=CallbackTriggers.side_trigger,
-        )
-
-    @staticmethod
-    def player_button(player):
-        return InlineKeyboardButton(
-            text=f"{str(player)} {Icons.playerIcon}",
-            callback_data=f"{CallbackTriggers.player_trigger},'{player}']",
-        )
-
-    @staticmethod
-    def tournament_button(tournament_name):
-        return InlineKeyboardButton(
-            text=f"Tournament: {tournament_name}",
-            callback_data=CallbackTriggers.side_trigger,
-        )
 
 
 class Hero:
@@ -464,59 +414,44 @@ class Markups:
     def gen_dota2_matches_markup(self):
         dota_api = Dota2API(steam_api_key)
         tournaments = dota_api.get_live_tournaments()
-        self.markup = InlineKeyboardMarkup()
+        message = "<b>Current Dota 2 Matches:</b>\n\n"  # Start with a header
 
+        # Iterate through tournaments and matches
         for tournament in tournaments:
+            message += f"<b>Tournament:</b> {tournament.name}\n"
+            message += f"<b>League ID:</b> {tournament.league_id}\n\n"  # Include league ID for reference
+
             for match in tournament.matches:
-                self.markup.add(
-                    Buttons.tournament_button(
-                        f"{tournament.name}_{tournament.league_id}"
-                    )
-                )
-                self.markup.add(Buttons.dire_button)
-                self.markup.add(
-                    Buttons.team_button(
-                        f"{match.dire_team.team_name}_{match.dire_team.team_id}"
-                    )
-                )
+                message += f"<b>Match ID:</b> {match.match_id}\n"
+                message += f"<b>Dire Team {Icons.direIcon} :</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
+                message += "<b>Players:</b>\n"
+
+                # List Dire team players
                 for player in match.dire_team.players:
-                    self.markup.add(
-                        Buttons.player_button(player=player.name),
-                        Buttons.hero_teamplay_button(
-                            player=player.account_id, hero_name=player.hero.name
-                        ),
-                    )
+                    message += f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
-                self.markup.add(Buttons.radiant_button)
-                self.markup.add(
-                    Buttons.team_button(
-                        f"{match.radiant_team.team_name}_{match.radiant_team.team_id}"
-                    )
-                )
+                message += f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
+                message += "<b>Players:</b>\n"
+
+                # List Radiant team players
                 for player in match.radiant_team.players:
-                    self.markup.add(
-                        Buttons.player_button(player=player.name),
-                        Buttons.hero_teamplay_button(
-                            player=player.account_id, hero_name=player.hero.name
-                        ),
-                    )
+                    message += f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
+                # Prepare match data for prediction
                 df, top_features = match.get_match_data_for_prediction()
 
-                predictor = MainML(
-                    df=df,  # The DataFrame after preparation
-                    model_path="./my_pytorch_model.pth",  # Path where the model will be saved
-                    top_features=None,  # Use all features if None is passed
-                    n_hidden=[100, 50],  # Hidden layers configuration
-                    drop_p=0.2,  # Dropout rate
-                    random_state=17,  # Seed for reproducibility
-                )
+                # Load model and make prediction
+                main_ml = MainML(df, "xgb_model.pkl")
+                main_ml.load_model()
+                prediction = main_ml.predict(df)
+                print(prediction)
 
-                prediction = predictor.predict_new_data(df)
-                # Add the prediction button to the markup
-                self.markup.add(Buttons.predict_button(prediction[0]))
-        if not (self.markup.keyboard):
-            self.markup.add(Buttons.dota2_restart_button)
+                # Add the prediction to the message
+                message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
+                message += "<b>----------------------------------------</b>\n"  # Separator line in bold
 
+        # If there are no matches found, add a restart message
+        if not message.strip():  # Check if the message is empty
+            message = "<b>No matches available at the moment.</b>\n"
 
-        return self.markup
+        return message

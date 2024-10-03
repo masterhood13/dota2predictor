@@ -3,7 +3,6 @@
 # This code is licensed under the MIT License. See LICENSE file for details.
 
 
-
 from telebot import TeleBot
 from config import telegram_key
 from structure.struct import Markups, CallbackTriggers
@@ -14,12 +13,8 @@ bot = TeleBot(telegram_key)
 class CallbackProcessor:
     @staticmethod
     def current_matches(call):
-        bot.edit_message_text(
-            "Current_matches",
-            call.message.chat.id,
-            call.message.message_id,
-            reply_markup=Markups().gen_dota2_matches_markup(),
-        )
+        message = Markups().gen_dota2_matches_markup()
+        bot.send_message(chat_id=call.message.chat.id, text=message, parse_mode="HTML")
 
 
 @bot.callback_query_handler(func=lambda query: True)
