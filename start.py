@@ -1,3 +1,9 @@
+# © 2024 Viktor Hamretskyi
+# All rights reserved.
+# This code is licensed under the MIT License. See LICENSE file for details.
+
+
+
 from telebot import TeleBot
 from config import telegram_key
 from structure.struct import Markups, CallbackTriggers

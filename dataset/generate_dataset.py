@@ -1,3 +1,8 @@
+# © 2024 Viktor Hamretskyi
+# All rights reserved.
+# This code is licensed under the MIT License. See LICENSE file for details.
+
+
 import pandas as pd
 from structure.struct import Tournament
 from structure.opendota import OpenDotaApi

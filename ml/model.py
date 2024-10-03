@@ -1,3 +1,9 @@
+# © 2024 Viktor Hamretskyi
+# All rights reserved.
+# This code is licensed under the MIT License. See LICENSE file for details.
+
+
+
 from sklearn.model_selection import train_test_split
 import torch.nn.functional as F
 from sklearn.metrics import classification_report, confusion_matrix
