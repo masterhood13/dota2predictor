@@ -2,7 +2,6 @@
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
 
-
 import os
 import pandas as pd
 from ml.model import MainML
@@ -19,7 +18,6 @@ df = prepare_data(df)
 # features = df.columns[:-1].tolist()  # All columns except the last one
 target = "radiant_win"  # Change to your target column name
 features = df.columns.drop(target).tolist()
-
 
 # Path to save the model
 model_path = "../xgb_model.pkl"  # Path where the model will be saved

@@ -2,7 +2,6 @@
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
 
-
 import os
 from dotenv import load_dotenv
 
