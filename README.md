@@ -4,7 +4,7 @@
 # Dota 2 Match Result Predictor Telegram Bot
 |        |                                                                                                                                                                                                                                                                                    |
 |--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Tests  | ![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen) ![Coverage](https://img.shields.io/badge/Coverage-<percentage>%25-brightgreen)
+| Tests  | ![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen) ![Coverage](https://img.shields.io/badge/Coverage-70%25-brightgreen)
 | Licnse | ![License](https://img.shields.io/badge/license-MIT-green)                                                                                                                                                                                                                         
 
 ## Overview
