@@ -1,11 +1,10 @@
+<!-- GitHub badges -->
+[![Tests](https://github.com/masterhood13/dota2predictor/actions/workflows/python-unitests.yml/badge.svg?branch=main)](https://github.com/masterhood13/dota2predictor/actions)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE.txt)
 
 ---
 
 # Dota 2 Match Result Predictor Telegram Bot
-|        |                                                                                                                                                                                                                                                                                    |
-|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Tests  | ![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen) ![Coverage](https://img.shields.io/badge/Coverage-70%25-brightgreen)
-| Licnse | ![License](https://img.shields.io/badge/license-MIT-green)                                                                                                                                                                                                                         
 
 ## Overview
 
@@ -14,7 +13,7 @@ This project is a Telegram bot that leverages a TensorFlow neural network model 
 ## Features
 
 - **Real-Time Predictions**: Predict match outcomes using a trained neural network model.
-- **Data Integration**: 
+- **Data Integration**:
   - Training data sourced from the **OpenDota API** for historical match results.
   - Current match data fetched using the **Steam API**.
 - **User-Friendly Interface**: Interactive Telegram bot interface for easy access to predictions and match information.
