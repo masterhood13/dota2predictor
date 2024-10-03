@@ -1,4 +1,4 @@
-# © 2024 Viktor Hamretskyi
+# © 2024 Viktor Hamretskyi masterhood13@gmail.com
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
 
