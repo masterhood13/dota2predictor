@@ -1,4 +1,4 @@
-name: Tests
+name: Python Unit Tests
 
 on:
   push:
@@ -11,12 +11,12 @@ jobs:
 
     steps:
     - name: Check out the code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: 3.9
 
     - name: Install dependencies
       run: |
@@ -29,37 +29,3 @@ jobs:
         coverage report
         coverage xml
         coverage html
-
-    - name: Calculate coverage percentage
-      id: coverage
-      run: |
-        coverage report --skip-covered > coverage.txt
-        percent=$(grep "TOTAL" coverage.txt | awk '{print $NF}' | sed 's/%//')
-        echo "##[set-output name=coverage;]$percent"
-
-    - name: Update README with coverage badge
-      run: |
-        sed -i 's/!\[Coverage\](https:\/\/img.shields.io\/badge\/Coverage-[^)]*)/![Coverage](https:\/\/img.shields.io\/badge\/Coverage-'${{ steps.coverage.outputs.coverage }}'%25-brightgreen)/' README.md
-      shell: bash
-
-    - name: Update README with test status badge
-      if: success()
-      run: |
-        sed -i 's/!\[Tests\](https:\/\/img.shields.io\/badge\/Tests-[^)]*)/![Tests](https:\/\/img.shields.io\/badge\/Tests-Passing-brightgreen)/' README.md
-      shell: bash
-
-    - name: Update README with failed test status badge
-      if: failure()
-      run: |
-        sed -i 's/!\[Tests\](https:\/\/img.shields.io\/badge\/Tests-[^)]*)/![Tests](https:\/\/img.shields.io\/badge\/Tests-Failing-red)/' README.md
-      shell: bash
-
-    - name: Commit updated README
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add README.md
-        git commit -m "Update coverage badge to ${{ steps.coverage.outputs.coverage }}%"
-        git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
