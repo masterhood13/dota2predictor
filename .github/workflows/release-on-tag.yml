@@ -34,7 +34,7 @@ jobs:
           tag=${{ steps.get_tag.outputs.TAG }}
 
           # Compare the extracted version and tag (both should match)
-          if [ "v$version" != "$tag" ]; then
+          if [ "$version" != "$tag" ]; then
             echo "Error: Version ($version) does not match Git tag ($tag)."
             exit 1  # Fail the workflow if they don't match
           else
