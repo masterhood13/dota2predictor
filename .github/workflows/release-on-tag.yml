@@ -1,0 +1,70 @@
+name: Create Release on Tag Push
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  create_release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from version.py
+        id: get_version
+        run: |
+          version=$(grep '__version__' version.py | cut -d '"' -f 2)
+          echo "App Version: $version"
+          echo "::set-output name=VERSION::$version"
+
+      - name: Get pushed Git tag
+        id: get_tag
+        run: |
+          tag=${GITHUB_REF#refs/tags/}  # Get the pushed tag
+          echo "Git Tag: $tag"
+          echo "::set-output name=TAG::$tag"
+
+      - name: Check if version matches the Git tag
+        run: |
+          version=${{ steps.get_version.outputs.VERSION }}
+          tag=${{ steps.get_tag.outputs.TAG }}
+
+          # Compare the extracted version and tag (both should match)
+          if [ "v$version" != "$tag" ]; then
+            echo "Error: Version ($version) does not match Git tag ($tag)."
+            exit 1  # Fail the workflow if they don't match
+          else
+            echo "Success: Version ($version) matches Git tag ($tag)."
+          fi
+
+      - name: Get previous tag
+        id: previousTag
+        run: |
+          name=$(git --no-pager tag --sort=creatordate --merged ${{ github.ref_name }} | tail -2 | head -1)
+          echo "previousTag: $name"
+          echo "previousTag=$name" >> $GITHUB_ENV
+
+      - name: Update CHANGELOG
+        id: changelog
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          fromTag: ${{ github.ref_name }}
+          toTag: ${{ env.previousTag }}
+          writeToFile: false
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: ${{ steps.changelog.outputs.changes }}
+          draft: false
+          prerelease: false
