@@ -14,6 +14,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Extract version from version.py
+        id: get_version
+        run: |
+          version=$(grep '__version__' version.py | cut -d '"' -f 2)
+          echo "App Version: $version"
+          echo "::set-output name=VERSION::$version"
+
+      - name: Get pushed Git tag
+        id: get_tag
+        run: |
+          tag=${GITHUB_REF#refs/tags/}  # Get the pushed tag
+          echo "Git Tag: $tag"
+          echo "::set-output name=TAG::$tag"
+
+      - name: Check if version matches the Git tag
+        run: |
+          version=${{ steps.get_version.outputs.VERSION }}
+          tag=${{ steps.get_tag.outputs.TAG }}
+
+          # Compare the extracted version and tag (both should match)
+          if [ "v$version" != "$tag" ]; then
+            echo "Error: Version ($version) does not match Git tag ($tag)."
+            exit 1  # Fail the workflow if they don't match
+          else
+            echo "Success: Version ($version) matches Git tag ($tag)."
+          fi
+
       - name: Changelog
         uses: scottbrenner/generate-changelog-action@master
         id: Changelog
