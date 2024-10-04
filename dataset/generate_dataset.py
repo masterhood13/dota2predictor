@@ -2,7 +2,6 @@
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
 
-
 import pandas as pd
 from structure.struct import Tournament
 from structure.opendota import OpenDotaApi
@@ -55,27 +54,27 @@ def generate_dataset():
                     for i, player in enumerate(radiant_team.players):
                         match_data[f"radiant_player_{i + 1}_id"] = player.account_id
                         match_data[f"radiant_player_{i + 1}_name"] = player.name
-                        match_data[
-                            f"radiant_player_{i + 1}_hero_id"
-                        ] = player.hero.hero_id
-                        match_data[
-                            f"radiant_player_{i + 1}_hero_name"
-                        ] = player.hero.name
-                        match_data[
-                            f"radiant_player_{i + 1}_hero_winrate"
-                        ] = player.hero.winrate
-                        match_data[
-                            f"radiant_player_{i + 1}_winrate"
-                        ] = player.player_data["win_rate"]
+                        match_data[f"radiant_player_{i + 1}_hero_id"] = (
+                            player.hero.hero_id
+                        )
+                        match_data[f"radiant_player_{i + 1}_hero_name"] = (
+                            player.hero.name
+                        )
+                        match_data[f"radiant_player_{i + 1}_hero_winrate"] = (
+                            player.hero.winrate
+                        )
+                        match_data[f"radiant_player_{i + 1}_winrate"] = (
+                            player.player_data["win_rate"]
+                        )
                         match_data[f"radiant_player_{i + 1}_kills"] = player.kills
                         match_data[f"radiant_player_{i + 1}_deaths"] = player.deaths
                         match_data[f"radiant_player_{i + 1}_assists"] = player.assists
-                        match_data[
-                            f"radiant_player_{i + 1}_gold_per_min"
-                        ] = player.gold_per_min
-                        match_data[
-                            f"radiant_player_{i + 1}_xp_per_min"
-                        ] = player.xp_per_min
+                        match_data[f"radiant_player_{i + 1}_gold_per_min"] = (
+                            player.gold_per_min
+                        )
+                        match_data[f"radiant_player_{i + 1}_xp_per_min"] = (
+                            player.xp_per_min
+                        )
 
                     # Add dire team player data (5 players)
                     for i, player in enumerate(dire_team.players):
@@ -83,21 +82,21 @@ def generate_dataset():
                         match_data[f"dire_player_{i + 1}_name"] = player.name
                         match_data[f"dire_player_{i + 1}_hero_id"] = player.hero.hero_id
                         match_data[f"dire_player_{i + 1}_hero_name"] = player.hero.name
-                        match_data[
-                            f"dire_player_{i + 1}_hero_winrate"
-                        ] = player.hero.winrate
+                        match_data[f"dire_player_{i + 1}_hero_winrate"] = (
+                            player.hero.winrate
+                        )
                         match_data[f"dire_player_{i + 1}_winrate"] = player.player_data[
                             "win_rate"
                         ]
                         match_data[f"dire_player_{i + 1}_kills"] = player.kills
                         match_data[f"dire_player_{i + 1}_deaths"] = player.deaths
                         match_data[f"dire_player_{i + 1}_assists"] = player.assists
-                        match_data[
-                            f"dire_player_{i + 1}_gold_per_min"
-                        ] = player.gold_per_min
-                        match_data[
-                            f"dire_player_{i + 1}_xp_per_min"
-                        ] = player.xp_per_min
+                        match_data[f"dire_player_{i + 1}_gold_per_min"] = (
+                            player.gold_per_min
+                        )
+                        match_data[f"dire_player_{i + 1}_xp_per_min"] = (
+                            player.xp_per_min
+                        )
 
                     print(match_data)
                     # Append match data to dataset

@@ -1,5 +1,10 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 23.1.0
+    rev: 24.8.0
     hooks:
       - id: black
+  - repo: git@github.com:PyCQA/flake8.git
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        args: [ --exclude, venv ]

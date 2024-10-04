@@ -5,7 +5,7 @@ from structure.struct import Hero, Player, Team, Match, Tournament, Dota2API
 
 
 class TestHero(unittest.TestCase):
-    @patch('requests.get')
+    @patch("requests.get")
     def test_get_hero_features_success(self, mock_get):
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = [
@@ -20,7 +20,7 @@ class TestHero(unittest.TestCase):
         self.assertEqual(hero.name, "Anti-Mage")
         self.assertAlmostEqual(hero.winrate, 0.5)
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_get_hero_features_failure(self, mock_get):
         mock_get.return_value.status_code = 404
         hero = Hero(hero_id=999)  # Assuming this ID does not exist
@@ -29,8 +29,8 @@ class TestHero(unittest.TestCase):
 
 
 class TestPlayer(unittest.TestCase):
-    @patch('requests.get')
-    @patch.object(Hero, 'get_hero_features')
+    @patch("requests.get")
+    @patch.object(Hero, "get_hero_features")
     def test_player_initialization(self, mock_hero_features, mock_get):
         # Mock the return value of get_hero_features
         mock_hero_features.return_value = {
@@ -42,19 +42,27 @@ class TestPlayer(unittest.TestCase):
 
         # Mock responses for player data API calls
         mock_get.side_effect = [
-            MagicMock(status_code=200, json=lambda: {"win": 10, "lose": 5}),  # First call for get_player_data
-            MagicMock(status_code=200, json=lambda: [                     # Second call for heroes data
-                {"hero_id": 1, "win": 5, "games": 10}
-            ]),
-            MagicMock(status_code=200, json=lambda: [                     # Third call for totals data
-                {"field": "kills", "sum": 0, "n": 1},
-                {"field": "deaths", "sum": 0, "n": 1},
-                {"field": "assists", "sum": 0, "n": 1},
-                {"field": "gold_per_min", "sum": 0, "n": 1},
-                {"field": "xp_per_min", "sum": 0, "n": 1},
-                {"field": "last_hits", "sum": 0, "n": 1},
-                {"field": "denies", "sum": 0, "n": 1},
-            ])
+            MagicMock(
+                status_code=200, json=lambda: {"win": 10, "lose": 5}
+            ),  # First call for get_player_data
+            MagicMock(
+                status_code=200,
+                json=lambda: [  # Second call for heroes data
+                    {"hero_id": 1, "win": 5, "games": 10}
+                ],
+            ),
+            MagicMock(
+                status_code=200,
+                json=lambda: [  # Third call for totals data
+                    {"field": "kills", "sum": 0, "n": 1},
+                    {"field": "deaths", "sum": 0, "n": 1},
+                    {"field": "assists", "sum": 0, "n": 1},
+                    {"field": "gold_per_min", "sum": 0, "n": 1},
+                    {"field": "xp_per_min", "sum": 0, "n": 1},
+                    {"field": "last_hits", "sum": 0, "n": 1},
+                    {"field": "denies", "sum": 0, "n": 1},
+                ],
+            ),
         ]
 
         # Create a Player instance
@@ -66,6 +74,7 @@ class TestPlayer(unittest.TestCase):
         self.assertAlmostEqual(player.kills, 0)  # Ensure kills are calculated correctly
         self.assertAlmostEqual(player.deaths, 0)  # Check if deaths is also zero
         self.assertAlmostEqual(player.assists, 0)  # Check if assists is also zero
+
 
 class TestTeam(unittest.TestCase):
     def test_team_initialization(self):
@@ -82,21 +91,22 @@ class TestTeam(unittest.TestCase):
 
 
 class TestMatch(unittest.TestCase):
-    @patch('requests.get')
-    @patch('structure.struct.Player')
-    @patch.object(Hero, 'get_hero_features', return_value={
-        "id": 1,
-        "name": "Anti-Mage",
-        "pro_win": 100,
-        "pro_pick": 200,
-    })
+    @patch("requests.get")
+    @patch("structure.struct.Player")
+    @patch.object(
+        Hero,
+        "get_hero_features",
+        return_value={
+            "id": 1,
+            "name": "Anti-Mage",
+            "pro_win": 100,
+            "pro_pick": 200,
+        },
+    )
     def test_get_match_data_success(self, mock_hero_features, mock_player, mock_get):
         # Mock the Player instance and its methods
         mock_player_instance = mock_player.return_value
-        mock_player_instance.get_player_data.return_value = {
-            "win": 10,
-            "lose": 5
-        }
+        mock_player_instance.get_player_data.return_value = {"win": 10, "lose": 5}
         mock_player_instance.get_player_total_data.return_value = [
             {"field": "kills", "sum": 100, "n": 10},
             {"field": "deaths", "sum": 50, "n": 10},
@@ -118,7 +128,7 @@ class TestMatch(unittest.TestCase):
             "players": [
                 {"account_id": 1, "name": "Player1", "hero_id": 1, "isRadiant": True},
                 {"account_id": 2, "name": "Player2", "hero_id": 2, "isRadiant": False},
-            ]
+            ],
         }
 
         # Create a Match instance and call get_match_data
@@ -143,8 +153,8 @@ class TestMatch(unittest.TestCase):
 
 
 class TestTournament(unittest.TestCase):
-    @patch('requests.get')
-    @patch('structure.struct.Match')  # Mock the Match class
+    @patch("requests.get")
+    @patch("structure.struct.Match")  # Mock the Match class
     def test_get_league_matches_success(self, mock_match, mock_get):
         # Mock the Match instance
         mock_match_instance = MagicMock()
@@ -153,11 +163,18 @@ class TestTournament(unittest.TestCase):
         # Set up the mock response for league matches
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = [
-            {"match_id": 1, "radiant_team_id": 1, "dire_team_id": 2, "radiant_win": True}
+            {
+                "match_id": 1,
+                "radiant_team_id": 1,
+                "dire_team_id": 2,
+                "radiant_win": True,
+            }
         ]
 
         # Set up the mock for get_match_data to not do the actual API call
-        mock_match_instance.get_match_data.return_value = None  # No return needed for this test
+        mock_match_instance.get_match_data.return_value = (
+            None  # No return needed for this test
+        )
 
         # Set the return values for the Match instance attributes
         mock_match_instance.match_id = 1
@@ -179,7 +196,7 @@ class TestTournament(unittest.TestCase):
         self.assertEqual(match.dire_team_id, 2)
         self.assertTrue(match.radiant_win)
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_get_league_matches_failure(self, mock_get):
         mock_get.return_value.status_code = 404
         tournament = Tournament(league_id=999, name="Unknown Tournament")
@@ -193,20 +210,19 @@ class TestDota2API(unittest.TestCase):
         self.api_key = "mock_api_key"
         self.dota_api = Dota2API(api_key=self.api_key)
 
-
-    @patch('requests.get')
-    @patch('structure.struct.Player')
-    @patch.object(Hero, 'get_hero_features', return_value={"id": 1,
-        "name": "Anti-Mage",
-        "pro_win": 100,
-        "pro_pick": 200})
-    def test_get_live_tournaments_success(self, mock_hero_features, mock_player, mock_get):
+    @patch("requests.get")
+    @patch("structure.struct.Player")
+    @patch.object(
+        Hero,
+        "get_hero_features",
+        return_value={"id": 1, "name": "Anti-Mage", "pro_win": 100, "pro_pick": 200},
+    )
+    def test_get_live_tournaments_success(
+        self, mock_hero_features, mock_player, mock_get
+    ):
         # Mock response for live tournaments
         mock_player_instance = mock_player.return_value
-        mock_player_instance.get_player_data.return_value = {
-            "win": 10,
-            "lose": 5
-        }
+        mock_player_instance.get_player_data.return_value = {"win": 10, "lose": 5}
         mock_player_instance.get_player_total_data.return_value = [
             {"field": "kills", "sum": 100, "n": 10},
             {"field": "deaths", "sum": 50, "n": 10},
@@ -227,10 +243,30 @@ class TestDota2API(unittest.TestCase):
                         "radiant_team": {"team_id": 1, "team_name": "Radiant Team"},
                         "dire_team": {"team_id": 2, "team_name": "Dire Team"},
                         "players": [
-                            {"account_id": 101, "name": "Player1", "hero_id": 5, "team": 0},
-                            {"account_id": 102, "name": "Player2", "hero_id": 3, "team": 0},
-                            {"account_id": 201, "name": "Player3", "hero_id": 7, "team": 1},
-                            {"account_id": 202, "name": "Player4", "hero_id": 2, "team": 1},
+                            {
+                                "account_id": 101,
+                                "name": "Player1",
+                                "hero_id": 5,
+                                "team": 0,
+                            },
+                            {
+                                "account_id": 102,
+                                "name": "Player2",
+                                "hero_id": 3,
+                                "team": 0,
+                            },
+                            {
+                                "account_id": 201,
+                                "name": "Player3",
+                                "hero_id": 7,
+                                "team": 1,
+                            },
+                            {
+                                "account_id": 202,
+                                "name": "Player4",
+                                "hero_id": 2,
+                                "team": 1,
+                            },
                         ],
                     }
                 ]
@@ -255,14 +291,10 @@ class TestDota2API(unittest.TestCase):
         self.assertEqual(match.radiant_team.team_id, 1)
         self.assertEqual(match.dire_team.team_id, 2)
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_get_live_tournaments_no_matches(self, mock_get):
         # Mock response with no live matches
-        mock_response = {
-            "result": {
-                "games": []
-            }
-        }
+        mock_response = {"result": {"games": []}}
 
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = mock_response
@@ -270,7 +302,7 @@ class TestDota2API(unittest.TestCase):
         tournaments = self.dota_api.get_live_tournaments()
         self.assertEqual(len(tournaments), 0)  # Expecting no tournaments
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_get_live_tournaments_error(self, mock_get):
         # Mock a response with an error status
         mock_get.return_value.status_code = 404
@@ -279,5 +311,5 @@ class TestDota2API(unittest.TestCase):
         self.assertEqual(len(tournaments), 0)  # Expecting no tournaments due to error
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

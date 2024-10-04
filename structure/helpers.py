@@ -2,15 +2,13 @@
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
 
-
-
 from sklearn.preprocessing import MinMaxScaler
 
 
 def find_dict_in_list(dicts, key, value):
     try:
         return next(item for item in dicts if item[key] == value)
-    except:
+    except KeyError:
         return {"sum": None, "n": 0}
 
 
