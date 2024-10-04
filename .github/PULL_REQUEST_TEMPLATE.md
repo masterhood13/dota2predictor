@@ -45,5 +45,3 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 ## Additional Context or Screenshots (if applicable)
 
 Include any additional context or relevant screenshots related to the prediction models or new features. If the change impacts the Dota 2 match prediction outcomes, provide graphs or results showing the impact.
-
-
