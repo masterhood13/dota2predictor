@@ -1,7 +1,7 @@
 <!-- GitHub badges -->
 [![Tests](https://github.com/masterhood13/dota2predictor/actions/workflows/python-unitests.yml/badge.svg?branch=main)](https://github.com/masterhood13/dota2predictor/actions)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-
+[![Docker Pulls](https://img.shields.io/docker/pulls/masterhood13/dota2predictor.svg)](https://hub.docker.com/r/masterhood13/dota2predictor)
 ---
 
 # Dota 2 Match Result Predictor Telegram Bot
