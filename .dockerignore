@@ -1,0 +1,11 @@
+.github
+.gitignore
+venv
+.coverage
+.env.example
+.flake8
+.idea
+.pre-commit-config.yaml
+coverage.txt
+README.md
+.env
