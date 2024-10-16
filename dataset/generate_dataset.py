@@ -14,7 +14,8 @@ def generate_dataset():
     premium_leagues = api.set_premium_leagues()
 
     last_big_leagues = [
-        "ESL One Kuala Lumpur powered by Intel" "BetBoom Dacha Dubai 2024",
+        "ESL One Kuala Lumpur powered by Intel",
+        "BetBoom Dacha Dubai 2024",
         "DreamLeague Season 22 powered by Intel",
         "Elite League Season 2 Main Event – presented by ESB",
         "ESL One Birmingham 2024 Powered by Intel",
@@ -63,9 +64,7 @@ def generate_dataset():
                         match_data[f"radiant_player_{i + 1}_hero_winrate"] = (
                             player.hero.winrate
                         )
-                        match_data[f"radiant_player_{i + 1}_winrate"] = (
-                            player.player_data["win_rate"]
-                        )
+                        # match_data[f"radiant_player_{i + 1}_winrate"] = player.player_data["win_rate"]
                         match_data[f"radiant_player_{i + 1}_kills"] = player.kills
                         match_data[f"radiant_player_{i + 1}_deaths"] = player.deaths
                         match_data[f"radiant_player_{i + 1}_assists"] = player.assists
@@ -74,6 +73,34 @@ def generate_dataset():
                         )
                         match_data[f"radiant_player_{i + 1}_xp_per_min"] = (
                             player.xp_per_min
+                        )
+
+                        # New fields
+                        match_data[
+                            f"radiant_player_{i + 1}_teamfight_participation"
+                        ] = player.teamfight_participation
+                        match_data[f"radiant_player_{i + 1}_obs_placed"] = (
+                            player.obs_placed
+                        )
+                        match_data[f"radiant_player_{i + 1}_sen_placed"] = (
+                            player.sen_placed
+                        )
+                        match_data[f"radiant_player_{i + 1}_net_worth"] = (
+                            player.net_worth
+                        )
+                        match_data[f"radiant_player_{i + 1}_roshans_killed"] = (
+                            player.roshans_killed
+                        )
+                        match_data[f"radiant_player_{i + 1}_last_hits"] = (
+                            player.last_hits
+                        )
+                        match_data[f"radiant_player_{i + 1}_denies"] = player.denies
+                        match_data[f"radiant_player_{i + 1}_level"] = player.level
+                        match_data[f"radiant_player_{i + 1}_hero_damage"] = (
+                            player.hero_damage
+                        )
+                        match_data[f"radiant_player_{i + 1}_tower_damage"] = (
+                            player.tower_damage
                         )
 
                     # Add dire team player data (5 players)
@@ -85,9 +112,7 @@ def generate_dataset():
                         match_data[f"dire_player_{i + 1}_hero_winrate"] = (
                             player.hero.winrate
                         )
-                        match_data[f"dire_player_{i + 1}_winrate"] = player.player_data[
-                            "win_rate"
-                        ]
+                        # match_data[f"dire_player_{i + 1}_winrate"] = player.player_data["win_rate"]
                         match_data[f"dire_player_{i + 1}_kills"] = player.kills
                         match_data[f"dire_player_{i + 1}_deaths"] = player.deaths
                         match_data[f"dire_player_{i + 1}_assists"] = player.assists
@@ -96,6 +121,30 @@ def generate_dataset():
                         )
                         match_data[f"dire_player_{i + 1}_xp_per_min"] = (
                             player.xp_per_min
+                        )
+
+                        # New fields
+                        match_data[f"dire_player_{i + 1}_teamfight_participation"] = (
+                            player.teamfight_participation
+                        )
+                        match_data[f"dire_player_{i + 1}_obs_placed"] = (
+                            player.obs_placed
+                        )
+                        match_data[f"dire_player_{i + 1}_sen_placed"] = (
+                            player.sen_placed
+                        )
+                        match_data[f"dire_player_{i + 1}_net_worth"] = player.net_worth
+                        match_data[f"dire_player_{i + 1}_roshans_killed"] = (
+                            player.roshans_killed
+                        )
+                        match_data[f"dire_player_{i + 1}_last_hits"] = player.last_hits
+                        match_data[f"dire_player_{i + 1}_denies"] = player.denies
+                        match_data[f"dire_player_{i + 1}_level"] = player.level
+                        match_data[f"dire_player_{i + 1}_hero_damage"] = (
+                            player.hero_damage
+                        )
+                        match_data[f"dire_player_{i + 1}_tower_damage"] = (
+                            player.tower_damage
                         )
 
                     print(match_data)

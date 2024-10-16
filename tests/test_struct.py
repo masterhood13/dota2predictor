@@ -40,40 +40,141 @@ class TestPlayer(unittest.TestCase):
             "pro_pick": 200,
         }
 
-        # Mock responses for player data API calls
+        # Create a Player instance with mock data
+        player_data = {
+            "name": "Player1",
+            "teamfight_participation": 0.75,
+            "obs_placed": 5,
+            "sen_placed": 3,
+            "net_worth": 15000,
+            "kills": 10,
+            "deaths": 4,
+            "assists": 8,
+            "roshans_killed": 1,
+            "last_hits": 50,
+            "denies": 10,
+            "gold_per_min": 400,
+            "xp_per_min": 450,
+            "level": 25,
+            "hero_damage": 20000,
+            "tower_damage": 5000,
+            "hero_healing": 3000,
+        }
+
+        player = Player(
+            account_id=1,
+            name="Player1",
+            hero_id=1,
+            team="Team A",
+            player_data=player_data,
+        )
+
+        # Assertions to validate player initialization
+        self.assertEqual(player.name, "Player1")
+        self.assertEqual(player.hero.name, "Anti-Mage")
+        self.assertEqual(player.kills, 10)
+        self.assertEqual(player.deaths, 4)
+        self.assertEqual(player.assists, 8)
+        self.assertEqual(player.net_worth, 15000)
+        self.assertEqual(player.teamfight_participation, 0.75)
+        self.assertEqual(player.obs_placed, 5)
+        self.assertEqual(player.sen_placed, 3)
+        self.assertEqual(player.roshans_killed, 1)
+        self.assertEqual(player.last_hits, 50)
+        self.assertEqual(player.denies, 10)
+        self.assertEqual(player.gold_per_min, 400)
+        self.assertEqual(player.xp_per_min, 450)
+        self.assertEqual(player.level, 25)
+        self.assertEqual(player.hero_damage, 20000)
+        self.assertEqual(player.tower_damage, 5000)
+        self.assertEqual(player.hero_healing, 3000)
+
+        # Ensure the Player's string representation is correct
+        expected_repr = (
+            "Player(Name: Player1, Hero: Anti-Mage, Team: Team A, "
+            "Teamfight Participation: 75.0%, Observers Placed: 5, Sentries Placed: 3, "
+            "K/D/A: 10/4/8, Net Worth: 15,000, Roshan Killed: 1, Last Hits: 50, "
+            "Denies: 10, GPM: 400, XPM: 450, Level: 25, Hero Damage: 20,000, "
+            "Tower Damage: 5,000, Hero Healing: 3,000)"
+        )
+        self.assertEqual(repr(player), expected_repr)
+
+    @patch("requests.get")
+    @patch.object(Hero, "get_hero_features")
+    def test_get_player_total_data(self, mock_hero_features, mock_get):
+        # Mock the return value of get_hero_features with the required structure
+        mock_hero_features.return_value = {
+            "id": 1,  # Make sure to include the 'id' key
+            "hero_id": 1,
+            "name": "Anti-Mage",
+            "pro_win": 100,
+            "pro_pick": 200,
+        }
+
+        # Mock the response for recent matches
+        mock_recent_matches_response = MagicMock(status_code=200)
+        mock_recent_matches_response.json.return_value = [
+            {"match_id": 12345},
+            {"match_id": 12346},
+        ]
+
+        # Mock the response for match data
+        mock_match_response = MagicMock(status_code=200)
+        mock_match_response.json.return_value = {
+            "players": [
+                {
+                    "account_id": 1,
+                    "teamfight_participation": 0.5,
+                    "obs_placed": 2,
+                    "sen_placed": 1,
+                    "net_worth": 12000,
+                    "kills": 5,
+                    "deaths": 3,
+                    "assists": 4,
+                    "roshans_killed": 0,
+                    "last_hits": 40,
+                    "denies": 5,
+                    "gold_per_min": 350,
+                    "xp_per_min": 400,
+                    "level": 20,
+                    "hero_damage": 15000,
+                    "tower_damage": 3000,
+                    "hero_healing": 2000,
+                }
+            ]
+        }
+
+        # Update the side effects
         mock_get.side_effect = [
-            MagicMock(
-                status_code=200, json=lambda: {"win": 10, "lose": 5}
-            ),  # First call for get_player_data
-            MagicMock(
-                status_code=200,
-                json=lambda: [  # Second call for heroes data
-                    {"hero_id": 1, "win": 5, "games": 10}
-                ],
-            ),
-            MagicMock(
-                status_code=200,
-                json=lambda: [  # Third call for totals data
-                    {"field": "kills", "sum": 0, "n": 1},
-                    {"field": "deaths", "sum": 0, "n": 1},
-                    {"field": "assists", "sum": 0, "n": 1},
-                    {"field": "gold_per_min", "sum": 0, "n": 1},
-                    {"field": "xp_per_min", "sum": 0, "n": 1},
-                    {"field": "last_hits", "sum": 0, "n": 1},
-                    {"field": "denies", "sum": 0, "n": 1},
-                ],
-            ),
+            mock_hero_features,
+            mock_recent_matches_response,  # 1st call: Recent matches
+            mock_match_response,
+            mock_match_response,  # 2nd call: Match data
         ]
 
         # Create a Player instance
         player = Player(account_id=1, name="Player1", hero_id=1, team="Team A")
 
-        # Assertions to validate player initialization
-        self.assertEqual(player.name, "Player1")
-        self.assertEqual(player.hero.name, "Anti-Mage")
-        self.assertAlmostEqual(player.kills, 0)  # Ensure kills are calculated correctly
-        self.assertAlmostEqual(player.deaths, 0)  # Check if deaths is also zero
-        self.assertAlmostEqual(player.assists, 0)  # Check if assists is also zero
+        # Call the method to fetch player data
+        player.get_player_total_data()
+
+        # Assertions to validate the totals after fetching data
+        self.assertEqual(player.teamfight_participation, 0.5)
+        self.assertEqual(player.obs_placed, 2)
+        self.assertEqual(player.sen_placed, 1)
+        self.assertEqual(player.net_worth, 12000)
+        self.assertEqual(player.kills, 5)
+        self.assertEqual(player.deaths, 3)
+        self.assertEqual(player.assists, 4)
+        self.assertEqual(player.roshans_killed, 0)
+        self.assertEqual(player.last_hits, 40)
+        self.assertEqual(player.denies, 5)
+        self.assertEqual(player.gold_per_min, 350)
+        self.assertEqual(player.xp_per_min, 400)
+        self.assertEqual(player.level, 20)
+        self.assertEqual(player.hero_damage, 15000)
+        self.assertEqual(player.tower_damage, 3000)
+        self.assertEqual(player.hero_healing, 2000)
 
 
 class TestTeam(unittest.TestCase):
@@ -98,7 +199,7 @@ class TestMatch(unittest.TestCase):
         "get_hero_features",
         return_value={
             "id": 1,
-            "name": "Anti-Mage",
+            "localized_name": "Anti-Mage",
             "pro_win": 100,
             "pro_pick": 200,
         },
@@ -150,6 +251,15 @@ class TestMatch(unittest.TestCase):
                 self.assertAlmostEqual(player.xp_per_min, 40)  # 400/10
                 self.assertAlmostEqual(player.last_hits, 20)  # 200/10
                 self.assertAlmostEqual(player.denies, 2.5)  # 25/10
+
+        # Test for the Dire team players
+        for player in match.dire_team.players:
+            if player.account_id == 2:  # Checking for Player2
+                # You can add relevant assertions for Player2 here as needed
+                self.assertIsNotNone(
+                    player.hero
+                )  # Just to check if Hero object is created
+                self.assertEqual(player.name, "Player2")
 
 
 class TestTournament(unittest.TestCase):
