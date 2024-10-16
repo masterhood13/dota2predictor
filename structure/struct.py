@@ -476,7 +476,7 @@ class Match:
                 match_data[f"dire_player_{i + 1}_tower_damage"] = player.tower_damage
 
         df = pd.DataFrame([match_data])
-        df = prepare_data(df)
+        df = prepare_data(df, "scaler.pkl")
         top_features = df.columns.tolist()
         return df, top_features
 

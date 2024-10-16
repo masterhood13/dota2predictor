@@ -259,7 +259,7 @@ class TestFeatureEngineering(unittest.TestCase):
         )
 
     def test_prepare_data(self):
-        prepared_df = prepare_data(self.df.copy())
+        prepared_df = prepare_data(self.df.copy(), "test_scaler.pkl")
 
         # Check for expected columns after preparation
         expected_columns = [

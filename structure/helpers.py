@@ -1,7 +1,8 @@
 # © 2024 Viktor Hamretskyi <masterhood13@gmail.com>
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
-
+import os
+import joblib
 from sklearn.preprocessing import MinMaxScaler
 
 
@@ -117,7 +118,7 @@ def calculate_player_kda(df, team_prefix):
     return df
 
 
-def prepare_data(df):
+def prepare_data(df, scaler_file_path="scaler.pkl"):
     # Apply feature engineering for both Radiant and Dire teams
     df = calculate_team_features(df, "radiant")
     df = calculate_team_features(df, "dire")
@@ -153,8 +154,16 @@ def prepare_data(df):
     columns_to_normalize = df.columns.difference(["match_id", "radiant_win"])
 
     # Initialize the MinMaxScaler
-    scaler = MinMaxScaler()
+    if os.path.exists(scaler_file_path):
+        scaler = joblib.load(scaler_file_path)
+        print(f"Loaded existing scaler from {scaler_file_path}")
+    else:
+        # Initialize a new MinMaxScaler if no saved state exists
+        scaler = MinMaxScaler()
+        scaler.fit(df[columns_to_normalize])
+        joblib.dump(scaler, scaler_file_path)
+        print("No existing scaler found, creating a new one.")
 
     # Apply Min-Max normalization
-    df[columns_to_normalize] = scaler.fit_transform(df[columns_to_normalize])
+    df[columns_to_normalize] = scaler.transform(df[columns_to_normalize])
     return df

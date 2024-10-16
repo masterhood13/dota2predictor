@@ -9,10 +9,11 @@ from structure.helpers import prepare_data
 
 
 file_path = os.path.join("..", "dataset", "train_data", "all_data.csv")
+scaler_path = "../scaler.pkl"
 
 # Load and prepare the dataset
 df = pd.read_csv(file_path)
-df = prepare_data(df)
+df = prepare_data(df, scaler_path)
 
 # Specify the features and target column
 # features = df.columns[:-1].tolist()  # All columns except the last one

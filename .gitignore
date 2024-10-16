@@ -57,3 +57,4 @@ Thumbs.db
 .coverage
 coverage.txt
 coverage.xml
+/test_scaler.pkl
