@@ -8,7 +8,7 @@ import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import opendota_key, steam_api_key
 from ml.model import MainML
-from structure.helpers import find_dict_in_list, prepare_data
+from structure.helpers import prepare_data
 
 main_ml = MainML(None, "xgb_model.pkl")
 main_ml.load_model()
@@ -17,7 +17,7 @@ main_ml.load_model()
 class Dota2API:
     def __init__(self, api_key):
         self.api_key = api_key
-        self.url = f"https://api.steampowered.com/IDOTA2Match_570/GetLiveLeagueGames/v1/?key={self.api_key}"
+        self.url = f"https://api.steampowered.com/IDOTA2Match_570/GetLiveLeagueGames/v1/?key={self.api_key}&dpc=true"
 
     def get_live_tournaments(self):
         response = requests.get(self.url)
@@ -43,10 +43,19 @@ class Dota2API:
             radiant_team_data = match_data.get("radiant_team")
             dire_team_data = match_data.get("dire_team")
             players_data = match_data.get("players", [])
+            print(
+                "Team 0:",
+                len(list(filter(lambda p: p["team"] == 0, players_data))),
+                "Team 1:",
+                len(list(filter(lambda p: p["team"] == 1, players_data))),
+            )
             # Check if any player has hero_id == 0
-            if any(player["hero_id"] == 0 for player in players_data):
+            if any(
+                player["hero_id"] == 0 and player["team"] in (0, 1)
+                for player in players_data
+            ):
                 print(
-                    f"Skipping match {match_data.get('match_id')} due to a player having hero_id = 0"
+                    f"Skipping match {match_data.get('match_id')} due to a player having hero_id = 0 and being on team 0 or 1"
                 )
                 continue
 
@@ -84,6 +93,7 @@ class Dota2API:
                     team=team_side,
                 )
                 team.add_player(player)
+                print(player)
         return team
 
 
@@ -143,93 +153,193 @@ class Hero:
 
 
 class Player:
-    def __init__(self, account_id, name, hero_id, team):
+    def __init__(self, account_id, name, hero_id, team, player_data=None):
         self.account_id = account_id
-        self.name = name
         self.team = team
         self.hero = Hero(hero_id)
-        self.player_data = self.get_player_data()
-
-        player_data = self.get_player_total_data()
-
-        kills = find_dict_in_list(player_data, "field", "kills")
-        self.kills = kills["sum"] / kills["n"] if kills["n"] > 0 else 0
-        deaths = find_dict_in_list(player_data, "field", "deaths")
-        self.deaths = deaths["sum"] / deaths["n"] if deaths["n"] > 0 else 0
-        assists = find_dict_in_list(player_data, "field", "assists")
-        self.assists = assists["sum"] / assists["n"] if assists["n"] > 0 else 0
-        gold_per_min = find_dict_in_list(player_data, "field", "gold_per_min")
-        self.gold_per_min = (
-            gold_per_min["sum"] / gold_per_min["n"] if gold_per_min["n"] > 0 else 0
-        )
-        xp_per_min = find_dict_in_list(player_data, "field", "xp_per_min")
-        self.xp_per_min = (
-            xp_per_min["sum"] / xp_per_min["n"] if xp_per_min["n"] > 0 else 0
-        )
-        last_hits = find_dict_in_list(player_data, "field", "last_hits")
-        self.last_hits = last_hits["sum"] / last_hits["n"] if last_hits["n"] > 0 else 0
-        denies = find_dict_in_list(player_data, "field", "denies")
-        self.denies = denies["sum"] / denies["n"] if denies["n"] > 0 else 0
+        self.name = name
+        if player_data:
+            self.teamfight_participation = player_data.get("teamfight_participation", 0)
+            self.obs_placed = player_data.get("obs_placed", 0)
+            self.sen_placed = player_data.get("sen_placed", 0)
+            self.net_worth = player_data.get("net_worth", 0)
+            self.kills = player_data.get("kills", 0)
+            self.deaths = player_data.get("deaths", 0)
+            self.assists = player_data.get("assists", 0)
+            self.roshans_killed = player_data.get("roshans_killed", 0)
+            self.last_hits = player_data.get("last_hits", 0)
+            self.denies = player_data.get("denies", 0)
+            self.gold_per_min = player_data.get("gold_per_min", 0)
+            self.xp_per_min = player_data.get("xp_per_min", 0)
+            self.level = player_data.get("level", 0)
+            self.hero_damage = player_data.get("hero_damage", 0)
+            self.tower_damage = player_data.get("tower_damage", 0)
+            self.hero_healing = player_data.get("hero_healing", 0)
+        else:
+            self.teamfight_participation = 0
+            self.obs_placed = 0
+            self.sen_placed = 0
+            self.net_worth = 0
+            self.kills = 0
+            self.deaths = 0
+            self.assists = 0
+            self.roshans_killed = 0
+            self.last_hits = 0
+            self.denies = 0
+            self.gold_per_min = 0
+            self.xp_per_min = 0
+            self.level = 0
+            self.hero_damage = 0
+            self.tower_damage = 0
+            self.hero_healing = 0
+            self.get_player_total_data()
 
     def get_player_total_data(self):
-        """Fetch player total data with indefinite retries until success."""
-        url = f"https://api.opendota.com/api/players/{self.account_id}/totals?api_key={opendota_key}&hero_id={self.hero.hero_id}&limit=30"
+        """Fetch player total data with retries on match data retrieval."""
+        recent_matches = self.fetch_recent_matches()
 
-        while True:  # Retry loop
-            try:
-                response = requests.get(url)
+        # Initialize counters for averages
+        participation_count = obs_count = sen_count = net_worth_count = 0
+        kills_count = deaths_count = assists_count = roshan_count = 0
+        last_hits_count = denies_count = gpm_count = xpm_count = level_count = 0
+        hero_damage_count = tower_damage_count = healing_count = 0
 
-                if response.status_code == 200:
-                    return response.json()  # Successful response, exit loop
-                else:
-                    print(
-                        f"Error fetching player data: {response.status_code}. Retrying..."
-                    )
+        # Iterate through recent matches
+        for match in recent_matches:
+            match_id = match["match_id"]
+            match_data = self.fetch_match_data_with_retries(match_id)
 
-            except requests.exceptions.RequestException as e:
-                print(f"Request failed: {e}. Retrying...")
+            if match_data is None:
+                print(f"Skipping match {match_id} after 5 attempts")
+                continue  # Skip the match if it couldn't be retrieved
 
-            sleep(2)
+            # Get player data
+            player_data = self.get_player_data(match_data)
 
-    def get_player_data(self):
-        # Fetch general win/loss data
-        url = f"https://api.opendota.com/api/players/{self.account_id}/wl?api_key={opendota_key}"
-        response = requests.get(url)
+            if player_data:
+                # Safely accumulate values if the keys exist and track counts
+                participation_count = self.accumulate_value(
+                    player_data, "teamfight_participation", participation_count
+                )
+                obs_count = self.accumulate_value(player_data, "obs_placed", obs_count)
+                sen_count = self.accumulate_value(player_data, "sen_placed", sen_count)
+                net_worth_count = self.accumulate_value(
+                    player_data, "net_worth", net_worth_count
+                )
+                kills_count = self.accumulate_value(player_data, "kills", kills_count)
+                deaths_count = self.accumulate_value(
+                    player_data, "deaths", deaths_count
+                )
+                assists_count = self.accumulate_value(
+                    player_data, "assists", assists_count
+                )
+                roshan_count = self.accumulate_value(
+                    player_data, "roshans_killed", roshan_count
+                )
+                last_hits_count = self.accumulate_value(
+                    player_data, "last_hits", last_hits_count
+                )
+                denies_count = self.accumulate_value(
+                    player_data, "denies", denies_count
+                )
+                gpm_count = self.accumulate_value(
+                    player_data, "gold_per_min", gpm_count
+                )
+                xpm_count = self.accumulate_value(player_data, "xp_per_min", xpm_count)
+                level_count = self.accumulate_value(player_data, "level", level_count)
+                hero_damage_count = self.accumulate_value(
+                    player_data, "hero_damage", hero_damage_count
+                )
+                tower_damage_count = self.accumulate_value(
+                    player_data, "tower_damage", tower_damage_count
+                )
+                healing_count = self.accumulate_value(
+                    player_data, "hero_healing", healing_count
+                )
 
-        if response.status_code == 200:
-            data = response.json()
-            player_stats = {
-                "win_rate": (
-                    data.get("win") / (data.get("win") + data.get("lose"))
-                    if (data.get("win") + data.get("lose")) > 0
-                    else 0
-                ),
-            }
+        # Safely divide by the number of successful additions for each field
+        self.teamfight_participation = self.calculate_average(
+            self.teamfight_participation, participation_count
+        )
+        self.obs_placed = self.calculate_average(self.obs_placed, obs_count)
+        self.sen_placed = self.calculate_average(self.sen_placed, sen_count)
+        self.net_worth = self.calculate_average(self.net_worth, net_worth_count)
+        self.kills = self.calculate_average(self.kills, kills_count)
+        self.deaths = self.calculate_average(self.deaths, deaths_count)
+        self.assists = self.calculate_average(self.assists, assists_count)
+        self.roshans_killed = self.calculate_average(self.roshans_killed, roshan_count)
+        self.last_hits = self.calculate_average(self.last_hits, last_hits_count)
+        self.denies = self.calculate_average(self.denies, denies_count)
+        self.gold_per_min = self.calculate_average(self.gold_per_min, gpm_count)
+        self.xp_per_min = self.calculate_average(self.xp_per_min, xpm_count)
+        self.level = self.calculate_average(self.level, level_count)
+        self.hero_damage = self.calculate_average(self.hero_damage, hero_damage_count)
+        self.tower_damage = self.calculate_average(
+            self.tower_damage, tower_damage_count
+        )
+        self.hero_healing = self.calculate_average(self.hero_healing, healing_count)
 
-            hero_url = f"https://api.opendota.com/api/players/{self.account_id}/heroes?api_key={opendota_key}&limit=30"
-            hero_response = requests.get(hero_url)
+    def fetch_recent_matches(self):
+        """Fetch recent matches for the player."""
+        response = requests.get(
+            f"https://api.opendota.com/api/players/{self.account_id}/recentMatches?api_key={opendota_key}"
+        )
+        return response.json() if response.status_code == 200 else []
 
-            if hero_response.status_code == 200:
-                hero_data = hero_response.json()
-                for hero in hero_data:
-                    if hero["hero_id"] == self.hero.hero_id:
-                        # Calculate the hero's win rate
-                        if hero["games"] > 0:
-                            self.hero_win_rate = hero["win"] / hero["games"]
-                        else:
-                            self.hero_win_rate = 0
+    def fetch_match_data_with_retries(self, match_id):
+        """Fetch match data with retries."""
+        retries = 0
+        max_retries = 5
 
-                        break
+        while retries < max_retries:
+            response = requests.get(
+                f"https://api.opendota.com/api/matches/{match_id}?api_key={opendota_key}"
+            )
+            if response.status_code == 200:
+                return response.json()  # Successful response
             else:
-                print(f"Error fetching hero data: {hero_response.status_code}")
+                retries += 1
+                print(
+                    f"Retrying... attempt {retries} (Status code: {response.status_code})"
+                )
+                sleep(2)  # Sleep for 2 seconds before retrying
 
-            return player_stats
-        else:
-            print(f"Error fetching player data: {response.status_code}")
-            return None
+        return None  # Return None if all retries fail
+
+    def get_player_data(self, match_data):
+        """Extract player data from match data."""
+        players = match_data.get("players", [])
+        return next(
+            (
+                player
+                for player in players
+                if player.get("account_id") == self.account_id
+            ),
+            None,
+        )
+
+    def accumulate_value(self, player_data, key, count):
+        """Accumulate value for a given key and return updated count."""
+        if key in player_data:
+            setattr(self, key, getattr(self, key) + player_data[key])  # Update the stat
+            count += 1  # Increment count
+        return count
+
+    def calculate_average(self, total, count):
+        """Calculate average, returning 0 if count is 0."""
+        return total / count if count > 0 else 0
 
     def __repr__(self):
-        return f"Player({self.name}, Hero : {self.hero.name}, Team: {self.team}, Data: {self.player_data})"
+        return (
+            f"Player(Name: {self.name}, Hero: {self.hero.name}, Team: {self.team}, "
+            f"Teamfight Participation: {self.teamfight_participation * 100:.1f}%, "
+            f"Observers Placed: {self.obs_placed}, Sentries Placed: {self.sen_placed}, "
+            f"K/D/A: {self.kills}/{self.deaths}/{self.assists}, "
+            f"Net Worth: {self.net_worth:,}, Roshan Killed: {self.roshans_killed}, Last Hits: {self.last_hits}, "
+            f"Denies: {self.denies}, GPM: {self.gold_per_min}, XPM: {self.xp_per_min}, "
+            f"Level: {self.level}, Hero Damage: {self.hero_damage:,}, Tower Damage: {self.tower_damage:,}, "
+            f"Hero Healing: {self.hero_healing:,})"
+        )
 
 
 class Team:
@@ -276,20 +386,23 @@ class Match:
             for player in match_info["players"]:
                 if player["isRadiant"]:
                     player = Player(
-                        player["account_id"],
-                        player["name"],
-                        player["hero_id"],
-                        radiant_team.team_name,
+                        account_id=player["account_id"],
+                        hero_id=player["hero_id"],
+                        name=player["name"],
+                        team=radiant_team.team_name,
+                        player_data=player,
                     )
                     radiant_team.add_player(player)
                 else:
                     player = Player(
-                        player["account_id"],
-                        player["name"],
-                        player["hero_id"],
-                        dire_team.team_name,
+                        account_id=player["account_id"],
+                        hero_id=player["hero_id"],
+                        name=player["name"],
+                        team=dire_team.team_name,
+                        player_data=player,
                     )
                     dire_team.add_player(player)
+                print(player)
             self.radiant_team = radiant_team
             self.dire_team = dire_team
 
@@ -311,14 +424,27 @@ class Match:
                 match_data[f"radiant_player_{i + 1}_hero_id"] = player.hero.hero_id
                 match_data[f"radiant_player_{i + 1}_hero_name"] = player.hero.name
                 match_data[f"radiant_player_{i + 1}_hero_winrate"] = player.hero.winrate
-                match_data[f"radiant_player_{i + 1}_winrate"] = player.player_data[
-                    "win_rate"
-                ]
+                # match_data[f"radiant_player_{i + 1}_winrate"] = player.player_data["win_rate"]
                 match_data[f"radiant_player_{i + 1}_kills"] = player.kills
                 match_data[f"radiant_player_{i + 1}_deaths"] = player.deaths
                 match_data[f"radiant_player_{i + 1}_assists"] = player.assists
                 match_data[f"radiant_player_{i + 1}_gold_per_min"] = player.gold_per_min
                 match_data[f"radiant_player_{i + 1}_xp_per_min"] = player.xp_per_min
+
+                match_data[f"radiant_player_{i + 1}_teamfight_participation"] = (
+                    player.teamfight_participation
+                )
+                match_data[f"radiant_player_{i + 1}_obs_placed"] = player.obs_placed
+                match_data[f"radiant_player_{i + 1}_sen_placed"] = player.sen_placed
+                match_data[f"radiant_player_{i + 1}_net_worth"] = player.net_worth
+                match_data[f"radiant_player_{i + 1}_roshans_killed"] = (
+                    player.roshans_killed
+                )
+                match_data[f"radiant_player_{i + 1}_last_hits"] = player.last_hits
+                match_data[f"radiant_player_{i + 1}_denies"] = player.denies
+                match_data[f"radiant_player_{i + 1}_level"] = player.level
+                match_data[f"radiant_player_{i + 1}_hero_damage"] = player.hero_damage
+                match_data[f"radiant_player_{i + 1}_tower_damage"] = player.tower_damage
 
             # Add dire team player data (5 players)
             for i, player in enumerate(self.dire_team.players):
@@ -327,14 +453,28 @@ class Match:
                 match_data[f"dire_player_{i + 1}_hero_id"] = player.hero.hero_id
                 match_data[f"dire_player_{i + 1}_hero_name"] = player.hero.name
                 match_data[f"dire_player_{i + 1}_hero_winrate"] = player.hero.winrate
-                match_data[f"dire_player_{i + 1}_winrate"] = player.player_data[
-                    "win_rate"
-                ]
+                # match_data[f"dire_player_{i + 1}_winrate"] = player.player_data["win_rate"]
                 match_data[f"dire_player_{i + 1}_kills"] = player.kills
                 match_data[f"dire_player_{i + 1}_deaths"] = player.deaths
                 match_data[f"dire_player_{i + 1}_assists"] = player.assists
                 match_data[f"dire_player_{i + 1}_gold_per_min"] = player.gold_per_min
                 match_data[f"dire_player_{i + 1}_xp_per_min"] = player.xp_per_min
+
+                match_data[f"dire_player_{i + 1}_teamfight_participation"] = (
+                    player.teamfight_participation
+                )
+                match_data[f"dire_player_{i + 1}_obs_placed"] = player.obs_placed
+                match_data[f"dire_player_{i + 1}_sen_placed"] = player.sen_placed
+                match_data[f"dire_player_{i + 1}_net_worth"] = player.net_worth
+                match_data[f"dire_player_{i + 1}_roshans_killed"] = (
+                    player.roshans_killed
+                )
+                match_data[f"dire_player_{i + 1}_last_hits"] = player.last_hits
+                match_data[f"dire_player_{i + 1}_denies"] = player.denies
+                match_data[f"dire_player_{i + 1}_level"] = player.level
+                match_data[f"dire_player_{i + 1}_hero_damage"] = player.hero_damage
+                match_data[f"dire_player_{i + 1}_tower_damage"] = player.tower_damage
+
         df = pd.DataFrame([match_data])
         df = prepare_data(df)
         top_features = df.columns.tolist()
@@ -383,6 +523,7 @@ class Tournament:
         response = requests.get(url)
         if response.status_code == 200:
             for match_info in response.json():
+                print(match_info)
                 match_id = match_info["match_id"]
                 radiant_team_id = match_info["radiant_team_id"]
                 dire_team_id = match_info["dire_team_id"]
