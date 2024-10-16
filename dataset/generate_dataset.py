@@ -14,16 +14,16 @@ def generate_dataset():
     premium_leagues = api.set_premium_leagues()
 
     last_big_leagues = [
-        # "ESL One Kuala Lumpur powered by Intel",
+        "ESL One Kuala Lumpur powered by Intel",
         "BetBoom Dacha Dubai 2024",
-        # "DreamLeague Season 22 powered by Intel",
-        # "Elite League Season 2 Main Event – presented by ESB",
-        # "ESL One Birmingham 2024 Powered by Intel",
-        # "DreamLeague Season 23 powered by Intel",
-        # "Riyadh Masters 2024 at Esports World Cup",
-        # "Clavision DOTA League S1 : Snow-Ruyi",
-        # "The International 2024",
-        # "PGL Wallachia 2024 Season 1",
+        "DreamLeague Season 22 powered by Intel",
+        "Elite League Season 2 Main Event – presented by ESB",
+        "ESL One Birmingham 2024 Powered by Intel",
+        "DreamLeague Season 23 powered by Intel",
+        "Riyadh Masters 2024 at Esports World Cup",
+        "Clavision DOTA League S1 : Snow-Ruyi",
+        "The International 2024",
+        "PGL Wallachia 2024 Season 1",
     ]
 
     for premium_league in premium_leagues:
@@ -154,7 +154,7 @@ def generate_dataset():
     df = pd.DataFrame(dataset)
 
     # Write DataFrame to a CSV file
-    df.to_csv("premium_league_matches10.csv", index=False)
+    df.to_csv("premium_league_matches.csv", index=False)
     print("Match dataset has been generated and saved to 'premium_league_matches.csv'.")
 
 
