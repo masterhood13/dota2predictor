@@ -134,6 +134,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Acknowledgments
 
+- [My Medium Article Part 1](https://medium.com/@masterhood13/building-a-dota-2-match-outcome-predictor-my-journey-and-learnings-fd60e1a79a23)
 - [OpenDota API](https://docs.opendota.com/)
 - [Steam API](https://steamapi.xpaw.me/)
 - [PyTorch](https://pytorch.org/)
