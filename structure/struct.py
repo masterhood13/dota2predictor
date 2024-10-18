@@ -350,7 +350,7 @@ class Player:
     def fetch_recent_matches(self):
         """Fetch recent matches for the player."""
         response = requests.get(
-            f"https://api.opendota.com/api/players/{self.account_id}/matches?api_key={opendota_key}&limit=10&hero_id={self.hero.hero_id}"
+            f"https://api.opendota.com/api/players/{self.account_id}/matches?api_key={opendota_key}&limit=10&hero_id={self.hero.hero_id}&lobby_type=1"
         )
         return response.json() if response.status_code == 200 else []
 
@@ -604,8 +604,13 @@ class Tournament:
                 match = Match(
                     match_id, radiant_team_id, dire_team_id, self.league_id, radiant_win
                 )
-                match.get_match_data()
-                self.add_match(match)
+                try:
+                    match.get_match_data()
+                    self.add_match(match)
+                except (TypeError, KeyError):
+                    # Done for skip broken data
+                    # TODO add logging
+                    pass
         else:
             print(
                 f"Error fetching matches for league {self.league_id}: {response.status_code}"
