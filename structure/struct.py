@@ -609,6 +609,7 @@ class Tournament:
                     self.add_match(match)
                 except (TypeError, KeyError):
                     # Done for skip broken data
+                    # TODO add logging
                     pass
         else:
             print(
