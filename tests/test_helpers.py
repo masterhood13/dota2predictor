@@ -36,6 +36,16 @@ class TestFeatureEngineering(unittest.TestCase):
             "radiant_player_3_hero_name": ["Hero3"],
             "radiant_player_4_hero_name": ["Hero4"],
             "radiant_player_5_hero_name": ["Hero5"],
+            "radiant_player_1_hero_id": [1],
+            "radiant_player_2_hero_id": [1],
+            "radiant_player_3_hero_id": [1],
+            "radiant_player_4_hero_id": [1],
+            "radiant_player_5_hero_id": [1],
+            "radiant_player_1_level": [10],
+            "radiant_player_2_level": [10],
+            "radiant_player_3_level": [10],
+            "radiant_player_4_level": [10],
+            "radiant_player_5_level": [10],
             # Radiant Team Player Statistics
             "radiant_player_1_kills": [5],
             "radiant_player_1_deaths": [2],
@@ -128,6 +138,16 @@ class TestFeatureEngineering(unittest.TestCase):
             "dire_player_3_hero_name": ["Hero8"],
             "dire_player_4_hero_name": ["Hero9"],
             "dire_player_5_hero_name": ["Hero10"],
+            "dire_player_1_hero_id": [1],
+            "dire_player_2_hero_id": [1],
+            "dire_player_3_hero_id": [1],
+            "dire_player_4_hero_id": [1],
+            "dire_player_5_hero_id": [1],
+            "dire_player_1_level": [10],
+            "dire_player_2_level": [10],
+            "dire_player_3_level": [10],
+            "dire_player_4_level": [10],
+            "dire_player_5_level": [10],
             # Dire Team Player Statistics
             "dire_player_1_kills": [2],
             "dire_player_1_deaths": [5],
@@ -215,26 +235,26 @@ class TestFeatureEngineering(unittest.TestCase):
 
         # Check for new features
         self.assertIn("radiant_avg_hero_winrate", df_radiant.columns)
-        self.assertIn("radiant_total_kills", df_radiant.columns)
-        self.assertIn("radiant_total_last_hits", df_radiant.columns)
-        self.assertIn("radiant_total_roshans_killed", df_radiant.columns)
-        self.assertIn("radiant_total_hero_damage", df_radiant.columns)
+        self.assertIn("radiant_avg_kills", df_radiant.columns)
+        self.assertIn("radiant_avg_last_hits", df_radiant.columns)
+        self.assertIn("radiant_avg_roshans_killed", df_radiant.columns)
+        self.assertIn("radiant_avg_hero_damage", df_radiant.columns)
 
         self.assertIn("dire_avg_hero_winrate", df_dire.columns)
-        self.assertIn("dire_total_kills", df_dire.columns)
-        self.assertIn("dire_total_last_hits", df_dire.columns)
-        self.assertIn("dire_total_roshans_killed", df_dire.columns)
-        self.assertIn("dire_total_hero_damage", df_dire.columns)
+        self.assertIn("dire_avg_kills", df_dire.columns)
+        self.assertIn("dire_avg_last_hits", df_dire.columns)
+        self.assertIn("dire_avg_roshans_killed", df_dire.columns)
+        self.assertIn("dire_avg_hero_damage", df_dire.columns)
 
         # Validate values for Radiant team
-        self.assertEqual(df_radiant["radiant_total_kills"].iloc[0], 20)
-        self.assertEqual(df_radiant["radiant_total_roshans_killed"].iloc[0], 3)
-        self.assertEqual(df_radiant["radiant_total_hero_damage"].iloc[0], 66000)
+        self.assertEqual(df_radiant["radiant_avg_kills"].iloc[0], 4)
+        self.assertEqual(df_radiant["radiant_avg_roshans_killed"].iloc[0], 0.6)
+        self.assertEqual(df_radiant["radiant_avg_hero_damage"].iloc[0], 13200)
 
         # Validate values for Dire team
-        self.assertEqual(df_dire["dire_total_kills"].iloc[0], 12)
-        self.assertEqual(df_dire["dire_total_roshans_killed"].iloc[0], 2)
-        self.assertEqual(df_dire["dire_total_hero_damage"].iloc[0], 33000)
+        self.assertEqual(df_dire["dire_avg_kills"].iloc[0], 2.4)
+        self.assertEqual(df_dire["dire_avg_roshans_killed"].iloc[0], 0.4)
+        self.assertEqual(df_dire["dire_avg_hero_damage"].iloc[0], 6600)
 
     def test_calculate_player_kda(self):
         radiant_df_with_kda = calculate_player_kda(
@@ -245,18 +265,16 @@ class TestFeatureEngineering(unittest.TestCase):
         )
 
         # Check for KDA columns
-        self.assertIn("radiant_total_kda", radiant_df_with_kda.columns)
-        self.assertIn("dire_total_kda", dire_df_with_kda.columns)
+        self.assertIn("radiant_avg_kda", radiant_df_with_kda.columns)
+        self.assertIn("dire_avg_kda", dire_df_with_kda.columns)
 
         # Validate KDA values for Radiant team
         self.assertAlmostEqual(
-            radiant_df_with_kda["radiant_total_kda"].iloc[0], 4.6, places=1
+            radiant_df_with_kda["radiant_avg_kda"].iloc[0], 4.6, places=1
         )
 
         # Validate KDA values for Dire team
-        self.assertAlmostEqual(
-            dire_df_with_kda["dire_total_kda"].iloc[0], 1.1, places=1
-        )
+        self.assertAlmostEqual(dire_df_with_kda["dire_avg_kda"].iloc[0], 1.1, places=1)
 
     def test_prepare_data(self):
         prepared_df = prepare_data(self.df.copy(), "test_scaler.pkl")
@@ -265,11 +283,11 @@ class TestFeatureEngineering(unittest.TestCase):
         expected_columns = [
             "radiant_win",
             "radiant_avg_hero_winrate",
-            "radiant_total_roshans_killed",
-            "radiant_total_last_hits",
-            "radiant_total_denies",
-            "radiant_total_hero_damage",
-            "radiant_total_tower_damage",
+            "radiant_avg_roshans_killed",
+            "radiant_avg_last_hits",
+            "radiant_avg_denies",
+            "radiant_avg_hero_damage",
+            "radiant_avg_player_level",
             "radiant_avg_gpm",
             "radiant_avg_xpm",
             "radiant_avg_net_worth",
@@ -277,19 +295,19 @@ class TestFeatureEngineering(unittest.TestCase):
             "radiant_sum_sen",
             "radiant_avg_teamfight_participation_cols",
             "dire_avg_hero_winrate",
-            "dire_total_roshans_killed",
-            "dire_total_last_hits",
-            "dire_total_denies",
-            "dire_total_hero_damage",
-            "dire_total_tower_damage",
+            "dire_avg_roshans_killed",
+            "dire_avg_last_hits",
+            "dire_avg_denies",
+            "dire_avg_hero_damage",
+            "dire_avg_player_level",
             "dire_avg_gpm",
             "dire_avg_xpm",
             "dire_avg_net_worth",
             "dire_sum_obs",
             "dire_sum_sen",
             "dire_avg_teamfight_participation_cols",
-            "radiant_total_kda",
-            "dire_total_kda",
+            "radiant_avg_kda",
+            "dire_avg_kda",
         ]
         self.assertEqual(len(expected_columns), len(prepared_df.columns))
         for col in expected_columns:

@@ -39,23 +39,24 @@ def calculate_team_features(df, team_prefix):
     hero_damage_cols = [f"{team_prefix}_player_{i}_hero_damage" for i in range(1, 6)]
     tower_damage_cols = [f"{team_prefix}_player_{i}_tower_damage" for i in range(1, 6)]
 
-    df[f"{team_prefix}_total_kills"] = df[kills_cols].sum(axis=1)
-    df[f"{team_prefix}_total_deaths"] = df[deaths_cols].sum(axis=1)
-    df[f"{team_prefix}_total_assists"] = df[assists_cols].sum(axis=1)
-    df[f"{team_prefix}_total_roshans_killed"] = df[roshans_killed_cols].sum(axis=1)
-    df[f"{team_prefix}_total_last_hits"] = df[last_hits_cols].sum(axis=1)
-    df[f"{team_prefix}_total_denies"] = df[denies_cols].sum(axis=1)
-    df[f"{team_prefix}_total_hero_damage"] = df[hero_damage_cols].sum(axis=1)
-    df[f"{team_prefix}_total_tower_damage"] = df[tower_damage_cols].sum(axis=1)
+    df[f"{team_prefix}_avg_kills"] = df[kills_cols].mean(axis=1)
+    df[f"{team_prefix}_avg_deaths"] = df[deaths_cols].mean(axis=1)
+    df[f"{team_prefix}_avg_assists"] = df[assists_cols].mean(axis=1)
+    df[f"{team_prefix}_avg_roshans_killed"] = df[roshans_killed_cols].mean(axis=1)
+    df[f"{team_prefix}_avg_last_hits"] = df[last_hits_cols].mean(axis=1)
+    df[f"{team_prefix}_avg_denies"] = df[denies_cols].mean(axis=1)
+    df[f"{team_prefix}_avg_hero_damage"] = df[hero_damage_cols].mean(axis=1)
 
     # Team GPM and XPM and Net Worth: Average GPM and XPM per team
     gpm_cols = [f"{team_prefix}_player_{i}_gold_per_min" for i in range(1, 6)]
     xpm_cols = [f"{team_prefix}_player_{i}_xp_per_min" for i in range(1, 6)]
     net_worth_cols = [f"{team_prefix}_player_{i}_net_worth" for i in range(1, 6)]
+    player_level_cols = [f"{team_prefix}_player_{i}_level" for i in range(1, 6)]
 
     df[f"{team_prefix}_avg_gpm"] = df[gpm_cols].mean(axis=1)
     df[f"{team_prefix}_avg_xpm"] = df[xpm_cols].mean(axis=1)
     df[f"{team_prefix}_avg_net_worth"] = df[net_worth_cols].mean(axis=1)
+    df[f"{team_prefix}_avg_player_level"] = df[player_level_cols].mean(axis=1)
 
     # Team OBSERVER and SENTRY: Sum OBSERVER and SENTRY per team
     obs_cols = [f"{team_prefix}_player_{i}_obs_placed" for i in range(1, 6)]
@@ -89,7 +90,8 @@ def calculate_team_features(df, team_prefix):
         + last_hits_cols
         + denies_cols
         + hero_damage_cols
-        + tower_damage_cols,
+        + tower_damage_cols
+        + player_level_cols,
         inplace=True,
     )
 
@@ -100,17 +102,17 @@ def calculate_player_kda(df, team_prefix):
     """
     Function to calculate KDA (Kill-Death-Assist ratio) for each player.
     """
-    df[f"{team_prefix}_total_kda"] = (
-        df[f"{team_prefix}_total_kills"] + df[f"{team_prefix}_total_assists"]
-    ) / df[f"{team_prefix}_total_deaths"].replace(
+    df[f"{team_prefix}_avg_kda"] = (
+        df[f"{team_prefix}_avg_kills"] + df[f"{team_prefix}_avg_assists"]
+    ) / df[f"{team_prefix}_avg_deaths"].replace(
         0, 1
     )  # Avoid division by zero
     # Drop kills, deaths, and assists for each player
     df.drop(
         columns=[
-            f"{team_prefix}_total_kills",
-            f"{team_prefix}_total_deaths",
-            f"{team_prefix}_total_assists",
+            f"{team_prefix}_avg_kills",
+            f"{team_prefix}_avg_deaths",
+            f"{team_prefix}_avg_assists",
         ],
         inplace=True,
     )
@@ -143,9 +145,11 @@ def prepare_data(df, scaler_file_path="scaler.pkl"):
             # Drop player names to anonymize data
             *[f"radiant_player_{i}_name" for i in range(1, 6)],
             *[f"radiant_player_{i}_id" for i in range(1, 6)],
+            *[f"radiant_player_{i}_hero_id" for i in range(1, 6)],
             *[f"radiant_player_{i}_hero_name" for i in range(1, 6)],
             *[f"dire_player_{i}_name" for i in range(1, 6)],
             *[f"dire_player_{i}_id" for i in range(1, 6)],
+            *[f"dire_player_{i}_hero_id" for i in range(1, 6)],
             *[f"dire_player_{i}_hero_name" for i in range(1, 6)],
         ],
         inplace=True,

@@ -350,7 +350,7 @@ class Player:
     def fetch_recent_matches(self):
         """Fetch recent matches for the player."""
         response = requests.get(
-            f"https://api.opendota.com/api/players/{self.account_id}/recentMatches?api_key={opendota_key}"
+            f"https://api.opendota.com/api/players/{self.account_id}/matches?api_key={opendota_key}&limit=10&hero_id={self.hero.hero_id}"
         )
         return response.json() if response.status_code == 200 else []
 
