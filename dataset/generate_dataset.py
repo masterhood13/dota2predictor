@@ -24,6 +24,25 @@ def generate_dataset():
         "Clavision DOTA League S1 : Snow-Ruyi",
         "The International 2024",
         "PGL Wallachia 2024 Season 1",
+        "The International 2023",
+        "Riyadh Masters 2023 by Gamers8",
+        "BetBoom Dacha",
+        "DreamLeague Season 21 powered by Intel",
+        "The Bali Major",
+        "DreamLeague Season 20 powered by Intel",
+        "ESL One The Berlin Major powered by Intel",
+        "DreamLeague Season 19 powered by Intel",
+        "Lima Major 2023",
+        "The International 2022",
+        "ESL One Malaysia 2022 powered by Intel",
+        "PGL Arlington Major 2022",
+        "Riyadh Masters by Gamers8",
+        "ESL One Stockholm Major 2022 powered by Intel",
+        "Gamers Galaxy: Dota 2 Invitational Series Dubai 2022",
+        "The International 2021",
+        "SAPPHIRE OGA DOTA PIT INVITATIONAL",
+        "ESL One Fall 2021 powered by Intel",
+        "ESL One Summer 2021 powered by Intel",
     ]
 
     for premium_league in premium_leagues:
@@ -151,10 +170,12 @@ def generate_dataset():
                     # Append match data to dataset
                     dataset.append(match_data)
 
-    df = pd.DataFrame(dataset)
-
-    # Write DataFrame to a CSV file
-    df.to_csv("premium_league_matches.csv", index=False)
+            df = pd.DataFrame(dataset)
+            # Write DataFrame to a CSV file
+            df.to_csv(
+                f"premium_league_matches_{league_name.replace(' ', '_')}.csv",
+                index=False,
+            )
     print("Match dataset has been generated and saved to 'premium_league_matches.csv'.")
 
 
