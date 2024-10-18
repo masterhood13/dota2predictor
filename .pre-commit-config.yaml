@@ -8,3 +8,11 @@ repos:
     hooks:
       - id: flake8
         args: [ --exclude, venv ]
+  - repo: local
+    hooks:
+      - id: run-unittests
+        name: Run Unit Tests
+        entry: python -m unittest discover
+        language: system
+        always_run: true
+        pass_filenames: false
