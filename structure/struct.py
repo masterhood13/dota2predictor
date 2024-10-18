@@ -19,104 +19,172 @@ class Dota2API:
         self.api_key = api_key
         self.url = f"https://api.steampowered.com/IDOTA2Match_570/GetLiveLeagueGames/v1/?key={self.api_key}&dpc=true"
 
-    def get_live_tournaments(self):
-        response = requests.get(self.url)
-        if response.status_code == 200:
-            live_matches = response.json().get("result", {}).get("games", [])
-            print(len(live_matches))
-            return self.build_tournaments(live_matches)
-        else:
-            print(f"Error: {response.status_code}")
+    def fetch_live_matches(self):
+        """Fetch live matches data from the Dota 2 API."""
+        try:
+            response = requests.get(self.url)
+            response.raise_for_status()
+            return response.json().get("result", {}).get("games", [])
+        except requests.RequestException as e:
+            print(f"Error fetching live matches: {e}")
             return []
 
-    def build_tournaments(self, matches_data):
-        tournaments = {}
+    def get_live_tournaments(self):
+        """Fetch and build a list of live tournaments."""
+        live_matches = self.fetch_live_matches()
+        return self.build_tournaments(live_matches)
 
+    def get_match_as_buttons(self, markup):
+        """Build and add buttons for each live match."""
+        live_matches = self.fetch_live_matches()
+        for match_data in live_matches:
+            if self.is_valid_match(match_data):
+                radiant_team, dire_team = match_data.get(
+                    "radiant_team"
+                ), match_data.get("dire_team")
+                if radiant_team and dire_team:
+                    markup.add(
+                        Buttons.match_button(
+                            dire_team_name=dire_team.get("team_name", "Unknown"),
+                            radiant_team_name=radiant_team.get("team_name", "Unknown"),
+                            match_id=match_data.get("match_id"),
+                        )
+                    )
+        markup.add(Buttons.dota2_restart_button)
+        return markup
+
+    def build_single_match(self, match_id):
+        """Build a single match object given the match_id."""
+        live_matches = self.fetch_live_matches()
+        for match_data in live_matches:
+            if str(match_data.get("match_id")) == str(match_id) and self.is_valid_match(
+                match_data
+            ):
+                return self.create_match_object(match_data)
+        return None
+
+    def build_tournaments(self, matches_data):
+        """Organize matches into tournaments."""
+        tournaments = {}
         for match_data in matches_data:
-            league_id = match_data.get("league_id")
-            league_name = match_data.get("league_name", "Unknown Tournament")
+            league_id, league_name = match_data.get("league_id"), match_data.get(
+                "league_name", "Unknown Tournament"
+            )
 
             if league_id not in tournaments:
                 tournaments[league_id] = Tournament(league_id, league_name)
 
-            # Check for the presence of radiant_team and dire_team
-            radiant_team_data = match_data.get("radiant_team")
-            dire_team_data = match_data.get("dire_team")
-            players_data = match_data.get("players", [])
-            print(
-                "Team 0:",
-                len(list(filter(lambda p: p["team"] == 0, players_data))),
-                "Team 1:",
-                len(list(filter(lambda p: p["team"] == 1, players_data))),
-            )
-            # Check if any player has hero_id == 0
-            if any(
-                player["hero_id"] == 0 and player["team"] in (0, 1)
-                for player in players_data
-            ):
-                print(
-                    f"Skipping match {match_data.get('match_id')} due to a player having hero_id = 0 and being on team 0 or 1"
-                )
-                continue
-
-            if radiant_team_data and dire_team_data:  # Ensure both teams are present
-                radiant_team = self.build_team(radiant_team_data, 0, players_data)
-                dire_team = self.build_team(dire_team_data, 1, players_data)
-
-                match = Match(
-                    match_id=match_data.get("match_id"),
-                    radiant_team_id=radiant_team.team_id,
-                    dire_team_id=dire_team.team_id,
-                    league_id=league_id,
-                )
-                match.dire_team = dire_team
-                match.radiant_team = radiant_team
-
-                tournaments[league_id].add_match(match)
+            if self.is_valid_match(match_data):
+                match = self.create_match_object(match_data)
+                if match:
+                    tournaments[league_id].add_match(match)
 
         return list(tournaments.values())
 
     def build_team(self, team_data, team_side, players_data):
-        if team_data is None:
-            return None  # Return None if team_data is not provided
+        """Build a team object with players."""
+        if not team_data:
+            return None
 
         team = Team(
             team_name=team_data.get("team_name", "Unknown"),
             team_id=team_data.get("team_id", 0),
         )
-        for player_data in players_data:
-            if player_data.get("team") == team_side:
-                player = Player(
-                    account_id=player_data.get("account_id"),
-                    name=player_data.get("name", "Unknown"),
-                    hero_id=player_data.get("hero_id", 0),
-                    team=team_side,
-                )
+
+        team_players = [
+            self.build_player(player_data)
+            for player_data in players_data
+            if player_data.get("team") == team_side
+        ]
+        for player in team_players:
+            if player:
                 team.add_player(player)
-                print(player)
+
         return team
+
+    def build_player(self, player_data):
+        """Build a player object."""
+        return Player(
+            account_id=player_data.get("account_id"),
+            name=player_data.get("name", "Unknown"),
+            hero_id=player_data.get("hero_id", 0),
+            team=player_data.get("team"),
+        )
+
+    def create_match_object(self, match_data):
+        """Create a Match object from match data."""
+        radiant_team_data, dire_team_data = match_data.get(
+            "radiant_team"
+        ), match_data.get("dire_team")
+        players_data = match_data.get("players", [])
+
+        radiant_team = self.build_team(radiant_team_data, 0, players_data)
+        dire_team = self.build_team(dire_team_data, 1, players_data)
+
+        if radiant_team and dire_team:
+            match = Match(
+                match_id=match_data.get("match_id"),
+                radiant_team_id=radiant_team.team_id,
+                dire_team_id=dire_team.team_id,
+                league_id=match_data.get("league_id"),
+            )
+            match.dire_team = dire_team
+            match.radiant_team = radiant_team
+            return match
+        return None
+
+    def is_valid_match(self, match_data):
+        """Check if the match is valid (no player with hero_id = 0 on teams)."""
+        players_data = match_data.get("players", [])
+        invalid_players = [
+            player
+            for player in players_data
+            if player["hero_id"] == 0 and player["team"] in (0, 1)
+        ]
+
+        if invalid_players:
+            print(
+                f"Skipping match {match_data.get('match_id')} due to invalid players."
+            )
+            return False
+        return True
 
 
 class CallbackTriggers:
     dota2_get_current_matches_trigger = "cb_dota2"
+    predict_by_id_trigger = "cb_match_by_id"
+    match_trigger = "['cb_match_t'"
 
 
 class Icons:
     playerIcon = "\U0001F468"
     direIcon = "\U0001F47F"
     radiantIcon = "\U0001F607"
+    reload = "\U0001F503"
 
 
 class Buttons:
     dota2_get_current_matches_button = InlineKeyboardButton(
-        "Get current Dota2 matches",
+        "Predict all matches at once",
         callback_data=CallbackTriggers.dota2_get_current_matches_trigger,
     )
 
-    dota2_restart_button = InlineKeyboardButton(
-        "No matches found try again later",
-        callback_data=CallbackTriggers.dota2_get_current_matches_trigger,
+    predict_by_id_button = InlineKeyboardButton(
+        "Select available match to predict",
+        callback_data=CallbackTriggers.predict_by_id_trigger,
     )
+
+    dota2_restart_button = InlineKeyboardButton(
+        f"Reload results {Icons.reload}",
+        callback_data=CallbackTriggers.predict_by_id_trigger,
+    )
+
+    @staticmethod
+    def match_button(dire_team_name, radiant_team_name, match_id):
+        return InlineKeyboardButton(
+            text=f"{match_id} | {Icons.direIcon}{dire_team_name} VS {Icons.radiantIcon}{radiant_team_name}",
+            callback_data=f'{CallbackTriggers.match_trigger},"{match_id}"]',
+        )
 
 
 class Hero:
@@ -321,8 +389,13 @@ class Player:
     def accumulate_value(self, player_data, key, count):
         """Accumulate value for a given key and return updated count."""
         if key in player_data:
-            setattr(self, key, getattr(self, key) + player_data[key])  # Update the stat
-            count += 1  # Increment count
+            try:
+                setattr(
+                    self, key, getattr(self, key) + player_data[key]
+                )  # Update the stat
+                count += 1  # Increment count
+            except TypeError:
+                count = 1
         return count
 
     def calculate_average(self, total, count):
@@ -543,25 +616,29 @@ class Tournament:
 
 
 class Markups:
-    def __init__(self):
+    def __init__(self, bot):
         self.markup = InlineKeyboardMarkup()
         self.markup.row_width = 8
+        self.bot = bot
 
     def gen_main_markup(self, current_user_id, current_channel_id):
         self.markup.add(Buttons.dota2_get_current_matches_button)
+        self.markup.add(Buttons.predict_by_id_button)
         return self.markup
 
-    def gen_dota2_matches_markup(self):
+    def gen_dota2_matches_markup(self, call):
         dota_api = Dota2API(steam_api_key)
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text="<b>Task started. This may take around 5 minutes. Please wait...</b>",
+            parse_mode="HTML",
+        )
         tournaments = dota_api.get_live_tournaments()
-        message = "<b>Current Dota 2 Matches:</b>\n\n"  # Start with a header
-
-        # Iterate through tournaments and matches
         for tournament in tournaments:
-            message += f"<b>Tournament:</b> {tournament.name}\n"
-            message += f"<b>League ID:</b> {tournament.league_id}\n\n"  # Include league ID for reference
-
             for match in tournament.matches:
+                message = ""  # Start with a header
+                message += f"<b>Tournament:</b> {tournament.name}\n"
+                message += f"<b>League ID:</b> {tournament.league_id}\n\n"  # Include league ID for reference
                 message += f"<b>Match ID:</b> {match.match_id}\n"
                 message += f"<b>Dire Team {Icons.direIcon} :</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
                 message += "<b>Players:</b>\n"
@@ -579,19 +656,57 @@ class Markups:
 
                 # Prepare match data for prediction
                 df, top_features = match.get_match_data_for_prediction()
-
-                # Load model and make prediction
-                main_ml = MainML(df, "xgb_model.pkl")
-                main_ml.load_model()
                 prediction = main_ml.predict(df)
                 print(prediction)
 
                 # Add the prediction to the message
                 message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
                 message += "<b>----------------------------------------</b>\n"  # Separator line in bold
+                self.bot.send_message(
+                    chat_id=call.message.chat.id, text=message, parse_mode="HTML"
+                )
+        self.bot.send_message(
+            chat_id=call.message.chat.id, text="<b>DONE</b>", parse_mode="HTML"
+        )
 
-        # If there are no matches found, add a restart message
-        if not message.strip():  # Check if the message is empty
-            message = "<b>No matches available at the moment.</b>\n"
+    def gen_match_markup_by_id(self, call):
+        dota_api = Dota2API(steam_api_key)
+        self.markup = dota_api.get_match_as_buttons(self.markup)
+        return self.markup
 
-        return message
+    def make_prediction_for_selected_match(self, call, match_id):
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text="Task started. This may take around 5 minutes. Please wait...",
+        )
+        dota_api = Dota2API(steam_api_key)
+        match = dota_api.build_single_match(match_id=match_id)
+        message = ""
+        message += f"<b>Match ID:</b> {match.match_id}\n"
+        message += f"<b>Dire Team {Icons.direIcon} :</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
+        message += "<b>Players:</b>\n"
+
+        # List Dire team players
+        for player in match.dire_team.players:
+            message += (
+                f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
+            )
+
+        message += f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
+        message += "<b>Players:</b>\n"
+
+        # List Radiant team players
+        for player in match.radiant_team.players:
+            message += (
+                f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
+            )
+
+        # Prepare match data for prediction
+        df, top_features = match.get_match_data_for_prediction()
+        prediction = main_ml.predict(df)
+        # Add the prediction to the message
+        message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
+        message += "<b>----------------------------------------</b>\n"  # Separator line in bold
+        self.bot.send_message(
+            chat_id=call.message.chat.id, text=message, parse_mode="HTML"
+        )
