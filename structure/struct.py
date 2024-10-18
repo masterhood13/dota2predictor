@@ -608,7 +608,7 @@ class Tournament:
                     match.get_match_data()
                     self.add_match(match)
                 except (TypeError, KeyError):
-                    # done for skip broken data
+                    # Done for skip broken data
                     pass
         else:
             print(
