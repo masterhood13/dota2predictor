@@ -10,3 +10,4 @@ coverage.txt
 README.md
 .env
 test_scaler.pkl
+dataset
