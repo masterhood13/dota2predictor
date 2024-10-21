@@ -1,0 +1,8 @@
+coverage:
+  range: 40..70
+  round: down
+  precision: 2
+  status:
+    project:
+      default:
+        target: 70%
