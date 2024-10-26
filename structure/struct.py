@@ -8,10 +8,13 @@ import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import opendota_key, steam_api_key
 from ml.model import MainML
-from structure.helpers import prepare_data
+from structure.helpers import prepare_match_prediction_data, prepare_hero_pick_data
 
 main_ml = MainML(None, "xgb_model.pkl")
 main_ml.load_model()
+
+hero_pick_ml = MainML(None, "xgb_model_hero_pick.pkl")
+hero_pick_ml.load_model()
 
 
 class Dota2API:
@@ -45,6 +48,25 @@ class Dota2API:
                 if radiant_team and dire_team:
                     markup.add(
                         Buttons.match_button(
+                            dire_team_name=dire_team.get("team_name", "Unknown"),
+                            radiant_team_name=radiant_team.get("team_name", "Unknown"),
+                            match_id=match_data.get("match_id"),
+                        )
+                    )
+        markup.add(Buttons.dota2_restart_button)
+        return markup
+
+    def get_hero_match_as_buttons(self, markup):
+        """Build and add buttons for each live match."""
+        live_matches = self.fetch_live_matches()
+        for match_data in live_matches:
+            if self.is_valid_match(match_data):
+                radiant_team, dire_team = match_data.get(
+                    "radiant_team"
+                ), match_data.get("dire_team")
+                if radiant_team and dire_team:
+                    markup.add(
+                        Buttons.hero_match_button(
                             dire_team_name=dire_team.get("team_name", "Unknown"),
                             radiant_team_name=radiant_team.get("team_name", "Unknown"),
                             match_id=match_data.get("match_id"),
@@ -153,7 +175,9 @@ class Dota2API:
 class CallbackTriggers:
     dota2_get_current_matches_trigger = "cb_dota2"
     predict_by_id_trigger = "cb_match_by_id"
+    predict_pick_analyser_trigger = "cb_pick_analyser"
     match_trigger = "['cb_match_t'"
+    hero_match_trigger = "['cb_hero_match_t'"
 
 
 class Icons:
@@ -170,8 +194,13 @@ class Buttons:
     )
 
     predict_by_id_button = InlineKeyboardButton(
-        "Select available match to predict",
+        "Predict match result",
         callback_data=CallbackTriggers.predict_by_id_trigger,
+    )
+
+    predict_pick_analyser_button = InlineKeyboardButton(
+        "Analyse pick strength",
+        callback_data=CallbackTriggers.predict_pick_analyser_trigger,
     )
 
     dota2_restart_button = InlineKeyboardButton(
@@ -186,12 +215,20 @@ class Buttons:
             callback_data=f'{CallbackTriggers.match_trigger},"{match_id}"]',
         )
 
+    @staticmethod
+    def hero_match_button(dire_team_name, radiant_team_name, match_id):
+        return InlineKeyboardButton(
+            text=f"{match_id} | {Icons.direIcon}{dire_team_name} VS {Icons.radiantIcon}{radiant_team_name}",
+            callback_data=f'{CallbackTriggers.hero_match_trigger},"{match_id}"]',
+        )
+
 
 class Hero:
     def __init__(self, hero_id):
         self.hero_id = hero_id
         self.features = self.get_hero_features()
         self.name = self.features["name"] if self.features else "Unknown Hero"
+        self.counter_picks = []
 
         if self.features and self.features["pro_pick"] > 0:
             self.winrate = self.features["pro_win"] / self.features["pro_pick"]
@@ -215,6 +252,31 @@ class Hero:
         else:
             print(f"Error fetching data: {response.status_code}")
             return None
+
+    def get_hero_matchups(self):
+        url = f"https://api.opendota.com/api/heroes/{self.hero_id}/matchups?api_key={opendota_key}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            hero_matchups = response.json()
+            return hero_matchups
+        else:
+            print(f"Error fetching data: {response.status_code}")
+            return None
+
+    def set_counter_pick_data(self, hero_against_ids):
+        hero_matchups = self.get_hero_matchups()
+        if hero_matchups:
+            for hero_matchup in hero_matchups:
+                if hero_matchup["hero_id"] in hero_against_ids:
+                    win_rate = (
+                        hero_matchup["wins"] / hero_matchup["games_played"]
+                        if hero_matchup["games_played"] > 0
+                        else 0
+                    )
+                    self.counter_picks.append(
+                        {"win_rate": win_rate, "hero_id": hero_matchup["hero_id"]}
+                    )
 
     def __repr__(self):
         return f"Hero(ID: {self.hero_id}, Name: {self.name}, Features: {self.features})"
@@ -480,8 +542,9 @@ class Match:
             self.dire_team = dire_team
 
     def get_match_data_for_prediction(self):
+        # Ensure both teams have the correct number of players
         if len(self.radiant_team.players) == 5 and len(self.dire_team.players) == 5:
-            # Create a single row with match and player data
+            # Initialize the match_data dictionary
             match_data = {
                 "match_id": self.match_id,
                 "radiant_team_id": self.radiant_team.team_id,
@@ -497,13 +560,11 @@ class Match:
                 match_data[f"radiant_player_{i + 1}_hero_id"] = player.hero.hero_id
                 match_data[f"radiant_player_{i + 1}_hero_name"] = player.hero.name
                 match_data[f"radiant_player_{i + 1}_hero_winrate"] = player.hero.winrate
-                # match_data[f"radiant_player_{i + 1}_winrate"] = player.player_data["win_rate"]
                 match_data[f"radiant_player_{i + 1}_kills"] = player.kills
                 match_data[f"radiant_player_{i + 1}_deaths"] = player.deaths
                 match_data[f"radiant_player_{i + 1}_assists"] = player.assists
                 match_data[f"radiant_player_{i + 1}_gold_per_min"] = player.gold_per_min
                 match_data[f"radiant_player_{i + 1}_xp_per_min"] = player.xp_per_min
-
                 match_data[f"radiant_player_{i + 1}_teamfight_participation"] = (
                     player.teamfight_participation
                 )
@@ -526,13 +587,11 @@ class Match:
                 match_data[f"dire_player_{i + 1}_hero_id"] = player.hero.hero_id
                 match_data[f"dire_player_{i + 1}_hero_name"] = player.hero.name
                 match_data[f"dire_player_{i + 1}_hero_winrate"] = player.hero.winrate
-                # match_data[f"dire_player_{i + 1}_winrate"] = player.player_data["win_rate"]
                 match_data[f"dire_player_{i + 1}_kills"] = player.kills
                 match_data[f"dire_player_{i + 1}_deaths"] = player.deaths
                 match_data[f"dire_player_{i + 1}_assists"] = player.assists
                 match_data[f"dire_player_{i + 1}_gold_per_min"] = player.gold_per_min
                 match_data[f"dire_player_{i + 1}_xp_per_min"] = player.xp_per_min
-
                 match_data[f"dire_player_{i + 1}_teamfight_participation"] = (
                     player.teamfight_participation
                 )
@@ -548,10 +607,79 @@ class Match:
                 match_data[f"dire_player_{i + 1}_hero_damage"] = player.hero_damage
                 match_data[f"dire_player_{i + 1}_tower_damage"] = player.tower_damage
 
-        df = pd.DataFrame([match_data])
-        df = prepare_data(df, "scaler.pkl")
-        top_features = df.columns.tolist()
-        return df, top_features
+            # Convert to DataFrame
+            df = pd.DataFrame([match_data])
+            df = prepare_match_prediction_data(df, "scaler.pkl")
+            top_features = df.columns.tolist()
+            return df, top_features
+        else:
+            raise ValueError("Both teams must have exactly 5 players.")
+
+    def get_hero_match_data_for_prediction(self):
+
+        if len(self.radiant_team.players) == 5 and len(self.dire_team.players) == 5:
+            dire_hero_ids = [player.hero.hero_id for player in self.dire_team.players]
+            radiant_hero_ids = [
+                player.hero.hero_id for player in self.radiant_team.players
+            ]
+
+            [
+                player.hero.set_counter_pick_data(radiant_hero_ids)
+                for player in self.dire_team.players
+            ]
+            [
+                player.hero.set_counter_pick_data(dire_hero_ids)
+                for player in self.radiant_team.players
+            ]
+            # Create a single row with match and player data
+            match_data = {
+                "match_id": self.match_id,
+                "radiant_team_id": self.radiant_team.team_id,
+                "radiant_team_name": self.radiant_team.team_name,
+                "dire_team_id": self.dire_team.team_id,
+                "dire_team_name": self.dire_team.team_name,
+            }
+
+            # Add radiant team player data (5 players)
+            for i, player in enumerate(self.radiant_team.players):
+                match_data[f"radiant_player_{i + 1}_hero_id"] = player.hero.hero_id
+                match_data[f"radiant_player_{i + 1}_hero_name"] = player.hero.name
+                match_data[f"radiant_player_{i + 1}_hero_winrate"] = player.hero.winrate
+                for n, counter_pick in enumerate(player.hero.counter_picks):
+                    match_data[f"radiant_hero_{i + 1}_{n + 1}_counter_pick"] = (
+                        counter_pick["win_rate"]
+                    )
+
+            # Add dire team player data (5 players)
+            for i, player in enumerate(self.dire_team.players):
+                match_data[f"dire_player_{i + 1}_hero_id"] = player.hero.hero_id
+                match_data[f"dire_player_{i + 1}_hero_name"] = player.hero.name
+                match_data[f"dire_player_{i + 1}_hero_winrate"] = player.hero.winrate
+                for n, counter_pick in enumerate(player.hero.counter_picks):
+                    match_data[f"dire_hero_{i + 1}_{n + 1}_counter_pick"] = (
+                        counter_pick["win_rate"]
+                    )
+
+            # Convert to DataFrame
+            df = pd.DataFrame([match_data])
+            df = prepare_hero_pick_data(df)
+            top_features = df.columns.tolist()
+            return df, top_features
+        else:
+            raise ValueError("Both teams must have exactly 5 players.")
+
+    def set_hero_counter_picks(self):
+        dire_hero_ids = [player.hero.hero_id for player in self.dire_team.players]
+        radiant_hero_ids = [player.hero.hero_id for player in self.radiant_team.players]
+
+        [
+            player.hero.set_counter_pick_data(radiant_hero_ids)
+            for player in self.dire_team.players
+        ]
+        [
+            player.hero.set_counter_pick_data(dire_hero_ids)
+            for player in self.radiant_team.players
+        ]
 
     def __repr__(self):
         # Prepare the Radiant team players
@@ -606,6 +734,7 @@ class Tournament:
                 )
                 try:
                     match.get_match_data()
+                    match.set_hero_counter_picks()
                     self.add_match(match)
                 except (TypeError, KeyError):
                     # Done for skip broken data
@@ -629,6 +758,7 @@ class Markups:
     def gen_main_markup(self, current_user_id, current_channel_id):
         self.markup.add(Buttons.dota2_get_current_matches_button)
         self.markup.add(Buttons.predict_by_id_button)
+        self.markup.add(Buttons.predict_pick_analyser_button)
         return self.markup
 
     def gen_dota2_matches_markup(self, call):
@@ -679,6 +809,11 @@ class Markups:
         self.markup = dota_api.get_match_as_buttons(self.markup)
         return self.markup
 
+    def gen_hero_match_markup_by_id(self, call):
+        dota_api = Dota2API(steam_api_key)
+        self.markup = dota_api.get_hero_match_as_buttons(self.markup)
+        return self.markup
+
     def make_prediction_for_selected_match(self, call, match_id):
         self.bot.send_message(
             chat_id=call.message.chat.id,
@@ -711,6 +846,43 @@ class Markups:
         prediction = main_ml.predict(df)
         # Add the prediction to the message
         message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
+        message += "<b>----------------------------------------</b>\n"  # Separator line in bold
+        self.bot.send_message(
+            chat_id=call.message.chat.id, text=message, parse_mode="HTML"
+        )
+
+    def make_hero_pick_prediction_for_selected_match(self, call, match_id):
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text="Task started. This may take around 5 minutes. Please wait...",
+        )
+        dota_api = Dota2API(steam_api_key)
+        match = dota_api.build_single_match(match_id=match_id)
+        message = ""
+        message += f"<b>Match ID:</b> {match.match_id}\n"
+        message += f"<b>Dire Team {Icons.direIcon} :</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
+        message += "<b>Players:</b>\n"
+
+        # List Dire team players
+        for player in match.dire_team.players:
+            message += (
+                f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
+            )
+
+        message += f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
+        message += "<b>Players:</b>\n"
+
+        # List Radiant team players
+        for player in match.radiant_team.players:
+            message += (
+                f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
+            )
+
+        # Prepare match data for prediction
+        df, top_features = match.get_hero_match_data_for_prediction()
+        prediction = hero_pick_ml.predict(df)
+        # Add the prediction to the message
+        message += f"\n<b>Prediction:</b> {'Radiant pick is stronger' if prediction[0] == 1 else 'Dire pick is stronger'}\n"
         message += "<b>----------------------------------------</b>\n"  # Separator line in bold
         self.bot.send_message(
             chat_id=call.message.chat.id, text=message, parse_mode="HTML"

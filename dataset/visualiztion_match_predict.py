@@ -3,7 +3,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-from structure.helpers import prepare_data
+from structure.helpers import prepare_match_prediction_data
 
 
 pd.set_option("display.max_columns", None)
@@ -13,7 +13,7 @@ scaler_path = "../scaler.pkl"
 
 # Load and prepare the dataset
 df = pd.read_csv(file_path)
-df = prepare_data(df, scaler_path)
+df = prepare_match_prediction_data(df, scaler_path)
 
 # Specify the features and target column
 # features = df.columns[:-1].tolist()  # All columns except the last one

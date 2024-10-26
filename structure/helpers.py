@@ -9,7 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 def find_dict_in_list(dicts, key, value):
     try:
         return next(item for item in dicts if item[key] == value)
-    except KeyError:
+    except (KeyError, StopIteration):
         return {"sum": None, "n": 0}
 
 
@@ -120,7 +120,7 @@ def calculate_player_kda(df, team_prefix):
     return df
 
 
-def prepare_data(df, scaler_file_path="scaler.pkl"):
+def prepare_match_prediction_data(df, scaler_file_path="scaler.pkl"):
     # Apply feature engineering for both Radiant and Dire teams
     df = calculate_team_features(df, "radiant")
     df = calculate_team_features(df, "dire")
@@ -170,4 +170,51 @@ def prepare_data(df, scaler_file_path="scaler.pkl"):
 
     # Apply Min-Max normalization
     df[columns_to_normalize] = scaler.transform(df[columns_to_normalize])
+    return df
+
+
+def create_hero_features(df, team_prefix):
+    hero_columns = [
+        f"{team_prefix}_hero_{i}_{n}_counter_pick"
+        for i in range(1, 6)
+        for n in range(1, 6)
+    ]
+    hero_winrate_columns = [
+        f"{team_prefix}_player_{i}_hero_winrate" for i in range(1, 6)
+    ]
+
+    df[f"{team_prefix}_avg_counter_pick"] = df[hero_columns].mean(axis=1)
+    df[f"{team_prefix}_avg_hero_winrate"] = df[hero_winrate_columns].mean(axis=1)
+    df.drop(
+        columns=hero_columns + hero_winrate_columns,
+        inplace=True,
+    )
+
+    return df
+
+
+def prepare_hero_pick_data(df):
+    df = create_hero_features(df, "radiant")
+    df = create_hero_features(df, "dire")
+
+    try:
+        df["radiant_win"] = df["radiant_win"].astype(int)
+    except KeyError:
+        pass
+
+    df.drop(
+        columns=[
+            "match_id",
+            "radiant_team_id",
+            "radiant_team_name",
+            "dire_team_id",
+            "dire_team_name",
+            # Drop player names to anonymize data
+            *[f"radiant_player_{i}_hero_id" for i in range(1, 6)],
+            *[f"radiant_player_{i}_hero_name" for i in range(1, 6)],
+            *[f"dire_player_{i}_hero_id" for i in range(1, 6)],
+            *[f"dire_player_{i}_hero_name" for i in range(1, 6)],
+        ],
+        inplace=True,
+    )
     return df

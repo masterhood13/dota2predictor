@@ -6,7 +6,9 @@ from sklearn.preprocessing import MinMaxScaler
 from structure.helpers import (
     calculate_team_features,
     calculate_player_kda,
-    prepare_data,
+    prepare_match_prediction_data,
+    find_dict_in_list,
+    prepare_hero_pick_data,
 )
 
 
@@ -227,7 +229,123 @@ class TestFeatureEngineering(unittest.TestCase):
             # Additional statistics can be added here as needed, like match duration, total gold, etc.
         }
 
+        data_hero_pick = {
+            "match_id": [7484575133],
+            "radiant_team_id": [9247354],
+            "radiant_team_name": ["Team Falcons"],
+            "dire_team_id": [7422789],
+            "dire_team_name": ["9Pandas"],
+            "radiant_win": [True],
+            # Radiant Player 1
+            "radiant_player_1_hero_id": [113],
+            "radiant_player_1_hero_name": ["Arc Warden"],
+            "radiant_player_1_hero_winrate": [0.5087719298245614],
+            "radiant_hero_1_1_counter_pick": [0.3888888888888889],
+            "radiant_hero_1_2_counter_pick": [0.2777777777777778],
+            "radiant_hero_1_3_counter_pick": [0.3888888888888889],
+            "radiant_hero_1_4_counter_pick": [0.3333333333333333],
+            "radiant_hero_1_5_counter_pick": [0.5454545454545454],
+            # Radiant Player 2
+            "radiant_player_2_hero_id": [54],
+            "radiant_player_2_hero_name": ["Lifestealer"],
+            "radiant_player_2_hero_winrate": [0.4595744680851064],
+            "radiant_hero_2_1_counter_pick": [0.5675675675675675],
+            "radiant_hero_2_2_counter_pick": [0.4507042253521127],
+            "radiant_hero_2_3_counter_pick": [0.5384615384615384],
+            "radiant_hero_2_4_counter_pick": [0.39285714285714285],
+            "radiant_hero_2_5_counter_pick": [0.3877551020408163],
+            # Radiant Player 3
+            "radiant_player_3_hero_id": [13],
+            "radiant_player_3_hero_name": ["Puck"],
+            "radiant_player_3_hero_winrate": [0.5209125475285171],
+            "radiant_hero_3_1_counter_pick": [0.4322033898305085],
+            "radiant_hero_3_2_counter_pick": [0.5833333333333334],
+            "radiant_hero_3_3_counter_pick": [0.4142857142857143],
+            "radiant_hero_3_4_counter_pick": [0.5],
+            "radiant_hero_3_5_counter_pick": [0.3939393939393939],
+            # Radiant Player 4
+            "radiant_player_4_hero_id": [4],
+            "radiant_player_4_hero_name": ["Bloodseeker"],
+            "radiant_player_4_hero_winrate": [0.5949367088607594],
+            "radiant_hero_4_1_counter_pick": [0.4318181818181818],
+            "radiant_hero_4_2_counter_pick": [0.53125],
+            "radiant_hero_4_3_counter_pick": [0.42857142857142855],
+            "radiant_hero_4_4_counter_pick": [0.6],
+            "radiant_hero_4_5_counter_pick": [0.47368421052631576],
+            # Radiant Player 5
+            "radiant_player_5_hero_id": [26],
+            "radiant_player_5_hero_name": ["Lion"],
+            "radiant_player_5_hero_winrate": [0.4669421487603306],
+            "radiant_hero_5_1_counter_pick": [0.3931034482758621],
+            "radiant_hero_5_2_counter_pick": [0.4028776978417266],
+            "radiant_hero_5_3_counter_pick": [0.46956521739130436],
+            "radiant_hero_5_4_counter_pick": [0.46788990825688076],
+            "radiant_hero_5_5_counter_pick": [0.5301204819277109],
+            # Dire Player 1
+            "dire_player_1_hero_id": [43],
+            "dire_player_1_hero_name": ["Death Prophet"],
+            "dire_player_1_hero_winrate": [0.4017094017094017],
+            "dire_hero_1_1_counter_pick": [0.5899280575539568],
+            "dire_hero_1_2_counter_pick": [0.5909090909090909],
+            "dire_hero_1_3_counter_pick": [0.5892857142857143],
+            "dire_hero_1_4_counter_pick": [0.4375],
+            "dire_hero_1_5_counter_pick": [0.5555555555555556],
+            # Dire Player 2
+            "dire_player_2_hero_id": [102],
+            "dire_player_2_hero_name": ["Abaddon"],
+            "dire_player_2_hero_winrate": [0.5133689839572193],
+            "dire_hero_2_1_counter_pick": [0.6],
+            "dire_hero_2_2_counter_pick": [0.5352112676056338],
+            "dire_hero_2_3_counter_pick": [0.5714285714285714],
+            "dire_hero_2_4_counter_pick": [0.5238095238095238],
+            "dire_hero_2_5_counter_pick": [0.5555555555555556],
+            # Dire Player 3
+            "dire_player_3_hero_id": [138],
+            "dire_player_3_hero_name": ["Muerta"],
+            "dire_player_3_hero_winrate": [0.49714285714285716],
+            "dire_hero_3_1_counter_pick": [0.559322033898305],
+            "dire_hero_3_2_counter_pick": [0.42342342342342343],
+            "dire_hero_3_3_counter_pick": [0.5229357798165137],
+            "dire_hero_3_4_counter_pick": [0.5454545454545454],
+            "dire_hero_3_5_counter_pick": [0.36363636363636365],
+            # Dire Player 4
+            "dire_player_4_hero_id": [76],
+            "dire_player_4_hero_name": ["Outworld Devourer"],
+            "dire_player_4_hero_winrate": [0.49324324324324326],
+            "dire_hero_4_1_counter_pick": [0.5217391304347826],
+            "dire_hero_4_2_counter_pick": [0.48484848484848486],
+            "dire_hero_4_3_counter_pick": [0.4461538461538462],
+            "dire_hero_4_4_counter_pick": [0.35],
+            "dire_hero_4_5_counter_pick": [0.6],
+            # Dire Player 5
+            "dire_player_5_hero_id": [50],
+            "dire_player_5_hero_name": ["Dazzle"],
+            "dire_player_5_hero_winrate": [0.4397163120567376],
+            "dire_hero_5_1_counter_pick": [0.40625],
+            "dire_hero_5_2_counter_pick": [0.4578313253012048],
+            "dire_hero_5_3_counter_pick": [0.5918367346938775],
+            "dire_hero_5_4_counter_pick": [0.47368421052631576],
+            "dire_hero_5_5_counter_pick": [0.6666666666666666],
+        }
+
         self.df = pd.DataFrame(data)
+
+        self.df_hero_pick = pd.DataFrame(data_hero_pick)
+
+    def test_find_dict_in_list(self):
+        dicts = [{"id": 1, "sum": 100, "n": 5}, {"id": 2, "sum": 200, "n": 3}]
+
+        # Test when key-value pair is found
+        result = find_dict_in_list(dicts, "id", 1)
+        self.assertEqual(result, {"id": 1, "sum": 100, "n": 5})
+
+        # Test when key-value pair is not found
+        result = find_dict_in_list(dicts, "id", 3)
+        self.assertEqual(result, {"sum": None, "n": 0})
+
+        # Test when key doesn't exist
+        result = find_dict_in_list(dicts, "unknown_key", 1)
+        self.assertEqual(result, {"sum": None, "n": 0})
 
     def test_calculate_team_features(self):
         df_radiant = calculate_team_features(self.df.copy(), "radiant")
@@ -277,7 +395,7 @@ class TestFeatureEngineering(unittest.TestCase):
         self.assertAlmostEqual(dire_df_with_kda["dire_avg_kda"].iloc[0], 1.1, places=1)
 
     def test_prepare_data(self):
-        prepared_df = prepare_data(self.df.copy(), "test_scaler.pkl")
+        prepared_df = prepare_match_prediction_data(self.df.copy(), "test_scaler.pkl")
 
         # Check for expected columns after preparation
         expected_columns = [
@@ -329,6 +447,45 @@ class TestFeatureEngineering(unittest.TestCase):
             self.assertGreaterEqual(scaled_features[0][i], 0)
             self.assertLessEqual(scaled_features[0][i], 1)
 
+    def test_prepare_hero_pick_data(self):
+        df_prepared = prepare_hero_pick_data(self.df_hero_pick.copy())
 
-if __name__ == "__main__":
-    unittest.main()
+        # Check if the new aggregated columns are created
+        self.assertIn("radiant_avg_counter_pick", df_prepared.columns)
+        self.assertIn("dire_avg_counter_pick", df_prepared.columns)
+
+        # Check that player hero columns are dropped
+        for i in range(1, 6):
+            self.assertNotIn(f"radiant_player_{i}_hero_id", df_prepared.columns)
+            self.assertNotIn(f"dire_player_{i}_hero_id", df_prepared.columns)
+
+        # Check if radiant_win is properly handled
+        self.assertEqual(df_prepared["radiant_win"].iloc[0], 1)
+
+    def test_prepare_data_no_radiant_win(self):
+        df_no_win = self.df.drop(columns=["radiant_win"]).copy()
+        prepared_df = prepare_match_prediction_data(df_no_win, "test_scaler.pkl")
+
+        # Check if radiant_win column is added correctly
+        self.assertNotIn("radiant_win", prepared_df.columns)
+
+    def test_prepare_hero_pick_data_no_radiant_win(self):
+        df_no_win = self.df_hero_pick.drop(columns=["radiant_win"]).copy()
+        df_prepared = prepare_hero_pick_data(df_no_win)
+
+        # Check if radiant_win column is added correctly
+        self.assertNotIn("radiant_win", df_prepared.columns)
+
+    def test_calculate_team_features_with_extreme_values(self):
+        df_extreme = self.df.copy()
+        # Assign extreme values
+        df_extreme["radiant_player_1_kills"] = 0
+        df_extreme["radiant_player_1_deaths"] = 0
+        df_extreme["radiant_player_1_assists"] = 100
+
+        df_radiant = calculate_team_features(df_extreme, "radiant")
+
+        # Validate that the averages are calculated correctly
+        self.assertEqual(df_radiant["radiant_avg_kills"].iloc[0], 3)
+        self.assertEqual(df_radiant["radiant_avg_assists"].iloc[0], 24.6)
+        self.assertEqual(df_radiant["radiant_avg_deaths"].iloc[0], 1.6)
