@@ -1,3 +1,7 @@
+# © 2024 Viktor Hamretskyi <masterhood13@gmail.com>
+# All rights reserved.
+# This code is licensed under the MIT License. See LICENSE file for details.
+
 import os
 import pandas as pd
 import seaborn as sns
