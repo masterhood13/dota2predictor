@@ -1,19 +1,23 @@
+# © 2024 Viktor Hamretskyi <masterhood13@gmail.com>
+# All rights reserved.
+# This code is licensed under the MIT License. See LICENSE file for details.
+
 import os
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-from structure.helpers import prepare_data
+from structure.helpers import prepare_hero_pick_data
 
 
 pd.set_option("display.max_columns", None)
 
-file_path = os.path.join("..", "dataset", "train_data", "all_data.csv")
-scaler_path = "../scaler.pkl"
+file_path = os.path.join("..", "dataset", "train_data", "all_data_hero_pick.csv")
+# scaler_path = "../scaler.pkl"
 
 # Load and prepare the dataset
 df = pd.read_csv(file_path)
-df = prepare_data(df, scaler_path)
+df = prepare_hero_pick_data(df)
 
 # Specify the features and target column
 # features = df.columns[:-1].tolist()  # All columns except the last one
@@ -24,7 +28,7 @@ features = df.columns.drop(target).tolist()
 corr_matrix = df.corr()
 
 # Visualize with a heatmap
-plt.figure(figsize=(12, 10))
+plt.figure(figsize=(24, 20))
 sns.heatmap(
     corr_matrix[["radiant_win"]].sort_values(by="radiant_win", ascending=False),
     annot=True,
