@@ -16,76 +16,66 @@ class TestMainML(unittest.TestCase):
         self.model_path = "dummy_model_path.pkl"
         self.main_ml = MainML(self.df, self.model_path)
 
-    @patch.object(XGBClassifier, "predict")  # Mock predict method
+    @patch.object(XGBClassifier, "predict", return_value=np.array([0, 1] * 10))
     @patch("joblib.dump")
     @patch.object(XGBClassifier, "fit")
-    @patch("builtins.print")  # Mock print to capture outputs
-    def test_train_and_save_model(
-        self, mock_print, mock_fit, mock_joblib_dump, mock_predict
-    ):
-        # Mock predict to return the correct number of predictions
-        mock_predict.return_value = np.array(
-            [0] * 10 + [1] * 10
-        )  # 20 predictions to match y_test size
+    def test_train_and_save_model(self, mock_fit, mock_joblib_dump, mock_predict):
+        with self.assertLogs("ml.model", level="INFO") as log:
+            self.main_ml.train_and_save_model(
+                features=[f"feature_{i}" for i in range(5)], target="target"
+            )
 
-        # Test the training and saving of the model
-        self.main_ml.train_and_save_model(
-            features=[f"feature_{i}" for i in range(5)], target="target"
-        )
+            # Check logs for model save and evaluation
+            self.assertIn(
+                "INFO:ml.model:Model saved to dummy_model_path.pkl", log.output
+            )
 
-        # Ensure the fit method was called during training
+        # Ensure fit and joblib.dump are called
         mock_fit.assert_called_once()
-
-        # Ensure the model was saved to the specified path
         mock_joblib_dump.assert_called_once_with(
             self.main_ml.xgb_model, self.model_path
         )
 
-        # Ensure evaluate_model was called (check print statements for classification report/confusion matrix)
-        mock_print.assert_any_call("Model saved to dummy_model_path.pkl")
-
     @patch("joblib.load")
-    @patch("builtins.print")  # Mock print to capture outputs
-    def test_load_model(self, mock_print, mock_joblib_load):
-        # Mock the joblib.load to return a dummy model
+    def test_load_model(self, mock_joblib_load):
         mock_joblib_load.return_value = XGBClassifier()
 
-        # Call the method to load the model
-        self.main_ml.load_model()
+        with self.assertLogs("ml.model", level="INFO") as log:
+            self.main_ml.load_model()
+            self.assertIn(
+                "INFO:ml.model:Model loaded from dummy_model_path.pkl", log.output
+            )
 
-        # Ensure the model was loaded
         mock_joblib_load.assert_called_once_with(self.model_path)
-
-        # Ensure print statement was called
-        mock_print.assert_any_call("Model loaded from dummy_model_path.pkl")
 
     @patch.object(XGBClassifier, "predict", return_value=np.array([1]))
     def test_predict(self, mock_predict):
-        # Create dummy new data for prediction
         new_data = np.array([[0.1, 0.2, 0.3, 0.4, 0.5]])
 
-        # Call the predict method
         prediction = self.main_ml.predict(new_data)
 
-        # Ensure predict method was called
         mock_predict.assert_called_once_with(new_data)
-
-        # Check if the prediction result is as expected
         self.assertEqual(prediction[0], 1)
 
     @patch.object(XGBClassifier, "predict", return_value=np.array([0, 1]))
-    @patch("builtins.print")  # Mock print to capture outputs
-    def test_evaluate_model(self, mock_print, mock_predict):
-        # Create test data for evaluation
+    def test_evaluate_model(self, mock_predict):
         X_test = np.array([[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]])
         y_test = np.array([0, 1])
 
-        # Call the evaluate_model method
-        self.main_ml.evaluate_model(X_test, y_test)
+        with self.assertLogs("ml.model", level="INFO") as log:
+            self.main_ml.evaluate_model(X_test, y_test)
 
-        # Ensure predict method was called
-        mock_predict.assert_called_once_with(X_test)
+            # Check for parts of the expected log output instead of exact matches
+            classification_report_logged = any(
+                "XGBoost Classification Report:" in message for message in log.output
+            )
+            confusion_matrix_logged = any(
+                "XGBoost Confusion Matrix:" in message for message in log.output
+            )
 
-        # Check if classification report and confusion matrix were printed
-        mock_print.assert_any_call("XGBoost Classification Report:")
-        mock_print.assert_any_call("XGBoost Confusion Matrix:")
+            self.assertTrue(
+                classification_report_logged, "Classification report not found in logs"
+            )
+            self.assertTrue(
+                confusion_matrix_logged, "Confusion matrix not found in logs"
+            )

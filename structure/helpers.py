@@ -4,7 +4,7 @@
 
 import os
 import joblib
-from config import logging
+import logging
 from sklearn.preprocessing import MinMaxScaler
 
 
