@@ -3,7 +3,10 @@
 # This code is licensed under the MIT License. See LICENSE file for details.
 
 import os
+import logging.config
 from dotenv import load_dotenv
+
+logging.config.fileConfig("logging.conf")
 
 # Load environment variables from .env file
 load_dotenv()

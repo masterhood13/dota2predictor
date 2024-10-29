@@ -5,6 +5,7 @@
 from time import sleep
 import pandas as pd
 import requests
+import logging
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import opendota_key, steam_api_key
 from ml.model import MainML
@@ -17,28 +18,38 @@ hero_pick_ml = MainML(None, "xgb_model_hero_pick.pkl")
 hero_pick_ml.load_model()
 
 
+logger = logging.getLogger(__name__)
+
+
 class Dota2API:
     def __init__(self, api_key):
         self.api_key = api_key
         self.url = f"https://api.steampowered.com/IDOTA2Match_570/GetLiveLeagueGames/v1/?key={self.api_key}&dpc=true"
+        logger.info("Dota2API initialized with provided API key.")
 
     def fetch_live_matches(self):
         """Fetch live matches data from the Dota 2 API."""
+        logger.info("Fetching live matches from the Dota 2 API.")
         try:
             response = requests.get(self.url)
             response.raise_for_status()
+            logger.info("Successfully fetched live matches.")
             return response.json().get("result", {}).get("games", [])
         except requests.RequestException as e:
-            print(f"Error fetching live matches: {e}")
+            logger.error(f"Error fetching live matches: {e}")
             return []
 
     def get_live_tournaments(self):
         """Fetch and build a list of live tournaments."""
+        logger.info("Fetching live tournaments.")
         live_matches = self.fetch_live_matches()
-        return self.build_tournaments(live_matches)
+        tournaments = self.build_tournaments(live_matches)
+        logger.info("Live tournaments fetched successfully.")
+        return tournaments
 
     def get_match_as_buttons(self, markup):
         """Build and add buttons for each live match."""
+        logger.info("Building match buttons for live matches.")
         live_matches = self.fetch_live_matches()
         for match_data in live_matches:
             if self.is_valid_match(match_data):
@@ -53,11 +64,16 @@ class Dota2API:
                             match_id=match_data.get("match_id"),
                         )
                     )
+                    logger.info(
+                        f"Added button for match ID: {match_data.get('match_id')}"
+                    )
         markup.add(Buttons.dota2_restart_button)
+        logger.info("All match buttons added to markup.")
         return markup
 
     def get_hero_match_as_buttons(self, markup):
         """Build and add buttons for each live match."""
+        logger.info("Building hero match buttons for live matches.")
         live_matches = self.fetch_live_matches()
         for match_data in live_matches:
             if self.is_valid_match(match_data):
@@ -72,21 +88,29 @@ class Dota2API:
                             match_id=match_data.get("match_id"),
                         )
                     )
+                    logger.info(
+                        f"Added hero button for match ID: {match_data.get('match_id')}"
+                    )
         markup.add(Buttons.dota2_restart_button)
+        logger.info("All hero match buttons added to markup.")
         return markup
 
     def build_single_match(self, match_id):
         """Build a single match object given the match_id."""
+        logger.info(f"Building single match object for match ID: {match_id}.")
         live_matches = self.fetch_live_matches()
         for match_data in live_matches:
             if str(match_data.get("match_id")) == str(match_id) and self.is_valid_match(
                 match_data
             ):
+                logger.info(f"Match ID {match_id} found and is valid.")
                 return self.create_match_object(match_data)
+        logger.warning(f"Match ID {match_id} not found or invalid.")
         return None
 
     def build_tournaments(self, matches_data):
         """Organize matches into tournaments."""
+        logger.info("Building tournaments from match data.")
         tournaments = {}
         for match_data in matches_data:
             league_id, league_name = match_data.get("league_id"), match_data.get(
@@ -100,14 +124,20 @@ class Dota2API:
                 match = self.create_match_object(match_data)
                 if match:
                     tournaments[league_id].add_match(match)
+                    logger.info(
+                        f"Match ID {match.match_id} added to tournament {league_name}."
+                    )
 
+        logger.info(f"Total tournaments built: {len(tournaments)}.")
         return list(tournaments.values())
 
     def build_team(self, team_data, team_side, players_data):
         """Build a team object with players."""
         if not team_data:
+            logger.warning("No team data provided for building a team.")
             return None
 
+        logger.info(f"Building team for side {team_side}.")
         team = Team(
             team_name=team_data.get("team_name", "Unknown"),
             team_id=team_data.get("team_id", 0),
@@ -122,10 +152,14 @@ class Dota2API:
             if player:
                 team.add_player(player)
 
+        logger.info(f"Team {team.team_name} built with {len(team_players)} players.")
         return team
 
     def build_player(self, player_data):
         """Build a player object."""
+        logger.info(
+            f"Building player object for account ID: {player_data.get('account_id')}."
+        )
         return Player(
             account_id=player_data.get("account_id"),
             name=player_data.get("name", "Unknown"),
@@ -135,6 +169,7 @@ class Dota2API:
 
     def create_match_object(self, match_data):
         """Create a Match object from match data."""
+        logger.info("Creating match object from match data.")
         radiant_team_data, dire_team_data = match_data.get(
             "radiant_team"
         ), match_data.get("dire_team")
@@ -152,11 +187,14 @@ class Dota2API:
             )
             match.dire_team = dire_team
             match.radiant_team = radiant_team
+            logger.info(f"Match object created for match ID: {match.match_id}.")
             return match
+        logger.warning("Could not create match object due to missing teams.")
         return None
 
     def is_valid_match(self, match_data):
         """Check if the match is valid (no player with hero_id = 0 on teams)."""
+        logger.info(f"Validating match ID: {match_data.get('match_id')}.")
         players_data = match_data.get("players", [])
         invalid_players = [
             player
@@ -165,10 +203,11 @@ class Dota2API:
         ]
 
         if invalid_players:
-            print(
+            logger.warning(
                 f"Skipping match {match_data.get('match_id')} due to invalid players."
             )
             return False
+        logger.info(f"Match ID {match_data.get('match_id')} is valid.")
         return True
 
 
@@ -235,14 +274,20 @@ class Hero:
         else:
             self.winrate = 0
 
+        logger.info(f"Initialized Hero: {self}")
+
     def get_hero_features(self):
         url = f"https://api.opendota.com/api/heroStats?api_key={opendota_key}"
+        logger.info(f"Fetching hero features for Hero ID: {self.hero_id}")
         response = requests.get(url)
 
         if response.status_code == 200:
             heroes = response.json()
             for hero in heroes:
                 if hero["id"] == self.hero_id:
+                    logger.info(
+                        f"Hero features retrieved for ID {self.hero_id}: {hero}"
+                    )
                     return {
                         "hero_id": hero["id"],
                         "name": hero["localized_name"],
@@ -250,21 +295,24 @@ class Hero:
                         "pro_pick": hero.get("pro_pick", 0),
                     }
         else:
-            print(f"Error fetching data: {response.status_code}")
+            logger.error(f"Error fetching hero features: {response.status_code}")
             return None
 
     def get_hero_matchups(self):
         url = f"https://api.opendota.com/api/heroes/{self.hero_id}/matchups?api_key={opendota_key}"
+        logger.info(f"Fetching matchups for Hero ID: {self.hero_id}")
         response = requests.get(url)
 
         if response.status_code == 200:
             hero_matchups = response.json()
+            logger.info(f"Matchups retrieved for Hero ID {self.hero_id}.")
             return hero_matchups
         else:
-            print(f"Error fetching data: {response.status_code}")
+            logger.error(f"Error fetching hero matchups: {response.status_code}")
             return None
 
     def set_counter_pick_data(self, hero_against_ids):
+        logger.info(f"Setting counter pick data for Hero ID: {self.hero_id}")
         hero_matchups = self.get_hero_matchups()
         if hero_matchups:
             for hero_matchup in hero_matchups:
@@ -277,6 +325,11 @@ class Hero:
                     self.counter_picks.append(
                         {"win_rate": win_rate, "hero_id": hero_matchup["hero_id"]}
                     )
+                    logger.info(
+                        f"Added counter pick for Hero ID: {hero_matchup['hero_id']} with win rate: {win_rate:.2f}"
+                    )
+        else:
+            logger.warning(f"No matchups found for Hero ID: {self.hero_id}")
 
     def __repr__(self):
         return f"Hero(ID: {self.hero_id}, Name: {self.name}, Features: {self.features})"
@@ -288,6 +341,7 @@ class Player:
         self.team = team
         self.hero = Hero(hero_id)
         self.name = name
+
         if player_data:
             self.teamfight_participation = player_data.get("teamfight_participation", 0)
             self.obs_placed = player_data.get("obs_placed", 0)
@@ -306,26 +360,36 @@ class Player:
             self.tower_damage = player_data.get("tower_damage", 0)
             self.hero_healing = player_data.get("hero_healing", 0)
         else:
-            self.teamfight_participation = 0
-            self.obs_placed = 0
-            self.sen_placed = 0
-            self.net_worth = 0
-            self.kills = 0
-            self.deaths = 0
-            self.assists = 0
-            self.roshans_killed = 0
-            self.last_hits = 0
-            self.denies = 0
-            self.gold_per_min = 0
-            self.xp_per_min = 0
-            self.level = 0
-            self.hero_damage = 0
-            self.tower_damage = 0
-            self.hero_healing = 0
+            # Initialize default values
+            self.reset_stats()
             self.get_player_total_data()
+
+        logger.info(f"Initialized Player: {self}")
+
+    def reset_stats(self):
+        """Reset all player statistics to zero."""
+        self.teamfight_participation = 0
+        self.obs_placed = 0
+        self.sen_placed = 0
+        self.net_worth = 0
+        self.kills = 0
+        self.deaths = 0
+        self.assists = 0
+        self.roshans_killed = 0
+        self.last_hits = 0
+        self.denies = 0
+        self.gold_per_min = 0
+        self.xp_per_min = 0
+        self.level = 0
+        self.hero_damage = 0
+        self.tower_damage = 0
+        self.hero_healing = 0
 
     def get_player_total_data(self):
         """Fetch player total data with retries on match data retrieval."""
+        logger.info(
+            f"Fetching total data for Player: {self.name} (ID: {self.account_id})"
+        )
         recent_matches = self.fetch_recent_matches()
 
         # Initialize counters for averages
@@ -340,14 +404,17 @@ class Player:
             match_data = self.fetch_match_data_with_retries(match_id)
 
             if match_data is None:
-                print(f"Skipping match {match_id} after 5 attempts")
+                logger.warning(f"Skipping match {match_id} after 5 attempts")
                 continue  # Skip the match if it couldn't be retrieved
 
             # Get player data
             player_data = self.get_player_data(match_data)
 
             if player_data:
-                # Safely accumulate values if the keys exist and track counts
+                logger.debug(
+                    f"Processing match data for match ID {match_id}: {player_data}"
+                )
+                # Accumulate values safely
                 participation_count = self.accumulate_value(
                     player_data, "teamfight_participation", participation_count
                 )
@@ -409,15 +476,26 @@ class Player:
         )
         self.hero_healing = self.calculate_average(self.hero_healing, healing_count)
 
+        logger.info(f"Completed data retrieval for Player: {self.name}")
+
     def fetch_recent_matches(self):
         """Fetch recent matches for the player."""
+        logger.info(f"Fetching recent matches for Player ID: {self.account_id}")
         response = requests.get(
             f"https://api.opendota.com/api/players/{self.account_id}/matches?api_key={opendota_key}&limit=10&hero_id={self.hero.hero_id}&lobby_type=1"
         )
-        return response.json() if response.status_code == 200 else []
+        if response.status_code == 200:
+            logger.info(
+                f"Recent matches fetched successfully for Player ID: {self.account_id}"
+            )
+            return response.json()
+        else:
+            logger.error(f"Error fetching recent matches: {response.status_code}")
+            return []
 
     def fetch_match_data_with_retries(self, match_id):
         """Fetch match data with retries."""
+        logger.info(f"Fetching match data for Match ID: {match_id}")
         retries = 0
         max_retries = 5
 
@@ -426,20 +504,24 @@ class Player:
                 f"https://api.opendota.com/api/matches/{match_id}?api_key={opendota_key}"
             )
             if response.status_code == 200:
+                logger.info(f"Successfully fetched match data for Match ID: {match_id}")
                 return response.json()  # Successful response
             else:
                 retries += 1
-                print(
-                    f"Retrying... attempt {retries} (Status code: {response.status_code})"
+                logger.warning(
+                    f"Retrying... attempt {retries} for Match ID {match_id} (Status code: {response.status_code})"
                 )
                 sleep(2)  # Sleep for 2 seconds before retrying
 
+        logger.error(
+            f"Failed to fetch match data for Match ID {match_id} after {max_retries} attempts"
+        )
         return None  # Return None if all retries fail
 
     def get_player_data(self, match_data):
         """Extract player data from match data."""
         players = match_data.get("players", [])
-        return next(
+        player_data = next(
             (
                 player
                 for player in players
@@ -447,6 +529,15 @@ class Player:
             ),
             None,
         )
+        if player_data:
+            logger.info(
+                f"Player data found for Account ID {self.account_id}: {player_data}"
+            )
+        else:
+            logger.warning(
+                f"No player data found for Account ID {self.account_id} in match data."
+            )
+        return player_data
 
     def accumulate_value(self, player_data, key, count):
         """Accumulate value for a given key and return updated count."""
@@ -457,12 +548,17 @@ class Player:
                 )  # Update the stat
                 count += 1  # Increment count
             except TypeError:
+                logger.error(
+                    f"TypeError while accumulating value for key {key}. Setting count to 1."
+                )
                 count = 1
         return count
 
     def calculate_average(self, total, count):
         """Calculate average, returning 0 if count is 0."""
-        return total / count if count > 0 else 0
+        average = total / count if count > 0 else 0
+        logger.debug(f"Calculated average: {average} (Total: {total}, Count: {count})")
+        return average
 
     def __repr__(self):
         return (
@@ -482,9 +578,11 @@ class Team:
         self.team_name = team_name
         self.team_id = team_id
         self.players = []
+        logger.info(f"Initialized Team: {self}")
 
     def add_player(self, player):
         self.players.append(player)
+        logger.info(f"Added player {player.name} to team {self.team_name}")
 
     def __repr__(self):
         return f"Team({self.team_name}, ID: {self.team_id}, Players: {self.players})"
@@ -506,8 +604,10 @@ class Match:
         self.dire_team = None
         self.league_id = league_id
         self.radiant_win = radiant_win
+        logger.info(f"Initialized Match: {self}")
 
     def get_match_data(self):
+        logger.info(f"Fetching match data for match ID: {self.match_id}")
         url = f"https://api.opendota.com/api/matches/{self.match_id}?api_key={opendota_key}"
         response = requests.get(url)
 
@@ -518,6 +618,8 @@ class Match:
             )
             dire_team = Team(match_info["dire_name"], match_info["dire_team_id"])
             self.radiant_win = match_info["radiant_win"]
+            logger.info(f"Match info retrieved: {match_info}")
+
             for player in match_info["players"]:
                 if player["isRadiant"]:
                     player = Player(
@@ -537,12 +639,20 @@ class Match:
                         player_data=player,
                     )
                     dire_team.add_player(player)
-                print(player)
+
+                logger.info(
+                    f"Added player: {player} to team: {radiant_team.team_name if player['isRadiant'] else dire_team.team_name}"
+                )
             self.radiant_team = radiant_team
             self.dire_team = dire_team
+            logger.info(f"Teams set: {self.radiant_team}, {self.dire_team}")
+        else:
+            logger.error(
+                f"Failed to fetch match data: {response.status_code} - {response.text}"
+            )
 
     def get_match_data_for_prediction(self):
-        # Ensure both teams have the correct number of players
+        logger.info("Preparing match data for prediction.")
         if len(self.radiant_team.players) == 5 and len(self.dire_team.players) == 5:
             # Initialize the match_data dictionary
             match_data = {
@@ -610,13 +720,15 @@ class Match:
             # Convert to DataFrame
             df = pd.DataFrame([match_data])
             df = prepare_match_prediction_data(df, "scaler.pkl")
+            logger.info("Match data prepared for prediction.")
             top_features = df.columns.tolist()
             return df, top_features
         else:
+            logger.error("Both teams must have exactly 5 players.")
             raise ValueError("Both teams must have exactly 5 players.")
 
     def get_hero_match_data_for_prediction(self):
-
+        logger.info("Preparing hero match data for prediction.")
         if len(self.radiant_team.players) == 5 and len(self.dire_team.players) == 5:
             dire_hero_ids = [player.hero.hero_id for player in self.dire_team.players]
             radiant_hero_ids = [
@@ -631,7 +743,6 @@ class Match:
                 player.hero.set_counter_pick_data(dire_hero_ids)
                 for player in self.radiant_team.players
             ]
-            # Create a single row with match and player data
             match_data = {
                 "match_id": self.match_id,
                 "radiant_team_id": self.radiant_team.team_id,
@@ -640,7 +751,6 @@ class Match:
                 "dire_team_name": self.dire_team.team_name,
             }
 
-            # Add radiant team player data (5 players)
             for i, player in enumerate(self.radiant_team.players):
                 match_data[f"radiant_player_{i + 1}_hero_id"] = player.hero.hero_id
                 match_data[f"radiant_player_{i + 1}_hero_name"] = player.hero.name
@@ -650,7 +760,6 @@ class Match:
                         counter_pick["win_rate"]
                     )
 
-            # Add dire team player data (5 players)
             for i, player in enumerate(self.dire_team.players):
                 match_data[f"dire_player_{i + 1}_hero_id"] = player.hero.hero_id
                 match_data[f"dire_player_{i + 1}_hero_name"] = player.hero.name
@@ -660,15 +769,17 @@ class Match:
                         counter_pick["win_rate"]
                     )
 
-            # Convert to DataFrame
             df = pd.DataFrame([match_data])
             df = prepare_hero_pick_data(df)
+            logger.info("Hero match data prepared for prediction.")
             top_features = df.columns.tolist()
             return df, top_features
         else:
+            logger.error("Both teams must have exactly 5 players.")
             raise ValueError("Both teams must have exactly 5 players.")
 
     def set_hero_counter_picks(self):
+        logger.info("Setting hero counter picks for players.")
         dire_hero_ids = [player.hero.hero_id for player in self.dire_team.players]
         radiant_hero_ids = [player.hero.hero_id for player in self.radiant_team.players]
 
@@ -680,32 +791,29 @@ class Match:
             player.hero.set_counter_pick_data(dire_hero_ids)
             for player in self.radiant_team.players
         ]
+        logger.info("Hero counter picks have been set.")
 
     def __repr__(self):
-        # Prepare the Radiant team players
         radiant_players = "\n".join(
             [
-                f"    Player: {player.name} (Hero : {player.hero.name})"
-                for player in self.radiant_team.players
+                f"    Player: {player.name} (Hero: {player.hero.name})"
+                for player in (self.radiant_team.players if self.radiant_team else [])
             ]
         )
-
-        # Prepare the Dire team players
         dire_players = "\n".join(
             [
-                f"    Player: {player.name} (Hero : {player.hero.name})"
-                for player in self.dire_team.players
+                f"    Player: {player.name} (Hero: {player.hero.name})"
+                for player in (self.dire_team.players if self.dire_team else [])
             ]
         )
 
-        # Format the result
         return (
             f"Match ID: {self.match_id}\n"
             f"League ID: {self.league_id}\n"
-            f"Radiant Team: {self.radiant_team.team_name}\n"
-            f"Radiant Players:\n{radiant_players}\n"
-            f"Dire Team: {self.dire_team.team_name}\n"
-            f"Dire Players:\n{dire_players}\n"
+            f"Radiant Team: {self.radiant_team.team_name if self.radiant_team else 'Not Set'}\n"
+            f"Radiant Players:\n{radiant_players or 'No Players'}\n"
+            f"Dire Team: {self.dire_team.team_name if self.dire_team else 'Not Set'}\n"
+            f"Dire Players:\n{dire_players or 'No Players'}\n"
             f"Radiant Win: {'Yes' if self.radiant_win else 'No'}"
         )
 
@@ -715,33 +823,39 @@ class Tournament:
         self.league_id = league_id
         self.name = name
         self.matches = []
+        logger.info(f"Tournament initialized: {self.name} (ID: {self.league_id})")
 
     def add_match(self, match):
         self.matches.append(match)
+        logger.info(f"Match added: {match.match_id} to tournament {self.name}")
 
     def get_league_matches(self):
         url = f"https://api.opendota.com/api/leagues/{self.league_id}/matches?api_key={opendota_key}"
+        logger.info(f"Fetching matches for league {self.league_id} from {url}")
         response = requests.get(url)
         if response.status_code == 200:
             for match_info in response.json():
-                print(match_info)
+                logger.debug(f"Match info received: {match_info}")
                 match_id = match_info["match_id"]
                 radiant_team_id = match_info["radiant_team_id"]
                 dire_team_id = match_info["dire_team_id"]
                 radiant_win = match_info["radiant_win"]
+
                 match = Match(
                     match_id, radiant_team_id, dire_team_id, self.league_id, radiant_win
                 )
+
                 try:
                     match.get_match_data()
                     match.set_hero_counter_picks()
                     self.add_match(match)
-                except (TypeError, KeyError):
-                    # Done for skip broken data
-                    # TODO add logging
-                    pass
+                    logger.info(f"Match {match_id} successfully added to tournament.")
+                except (TypeError, KeyError) as e:
+                    logger.warning(
+                        f"Error processing match {match_id}: {str(e)} - Skipping this match."
+                    )
         else:
-            print(
+            logger.error(
                 f"Error fetching matches for league {self.league_id}: {response.status_code}"
             )
 
@@ -754,77 +868,99 @@ class Markups:
         self.markup = InlineKeyboardMarkup()
         self.markup.row_width = 8
         self.bot = bot
+        logger.info("Markups class initialized.")
 
     def gen_main_markup(self, current_user_id, current_channel_id):
+        logger.info(
+            f"Generating main markup for user {current_user_id} in channel {current_channel_id}."
+        )
         self.markup.add(Buttons.dota2_get_current_matches_button)
         self.markup.add(Buttons.predict_by_id_button)
         self.markup.add(Buttons.predict_pick_analyser_button)
         return self.markup
 
     def gen_dota2_matches_markup(self, call):
+        logger.info("Generating Dota2 matches markup.")
         dota_api = Dota2API(steam_api_key)
         self.bot.send_message(
             chat_id=call.message.chat.id,
             text="<b>Task started. This may take around 5 minutes. Please wait...</b>",
             parse_mode="HTML",
         )
-        tournaments = dota_api.get_live_tournaments()
-        for tournament in tournaments:
-            for match in tournament.matches:
-                message = ""  # Start with a header
-                message += f"<b>Tournament:</b> {tournament.name}\n"
-                message += f"<b>League ID:</b> {tournament.league_id}\n\n"  # Include league ID for reference
-                message += f"<b>Match ID:</b> {match.match_id}\n"
-                message += f"<b>Dire Team {Icons.direIcon} :</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
-                message += "<b>Players:</b>\n"
 
-                # List Dire team players
-                for player in match.dire_team.players:
-                    message += f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
+        try:
+            tournaments = dota_api.get_live_tournaments()
+            for tournament in tournaments:
+                for match in tournament.matches:
+                    message = (
+                        f"<b>Tournament:</b> {tournament.name}\n"
+                        f"<b>League ID:</b> {tournament.league_id}\n\n"
+                        f"<b>Match ID:</b> {match.match_id}\n"
+                        f"<b>Dire Team {Icons.direIcon}:</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
+                        "<b>Players:</b>\n"
+                    )
 
-                message += f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
-                message += "<b>Players:</b>\n"
+                    # List Dire team players
+                    for player in match.dire_team.players:
+                        message += f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
-                # List Radiant team players
-                for player in match.radiant_team.players:
-                    message += f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
+                    message += (
+                        f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
+                        "<b>Players:</b>\n"
+                    )
 
-                # Prepare match data for prediction
-                df, top_features = match.get_match_data_for_prediction()
-                prediction = main_ml.predict(df)
-                print(prediction)
+                    # List Radiant team players
+                    for player in match.radiant_team.players:
+                        message += f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
-                # Add the prediction to the message
-                message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
-                message += "<b>----------------------------------------</b>\n"  # Separator line in bold
-                self.bot.send_message(
-                    chat_id=call.message.chat.id, text=message, parse_mode="HTML"
-                )
-        self.bot.send_message(
-            chat_id=call.message.chat.id, text="<b>DONE</b>", parse_mode="HTML"
-        )
+                    # Prepare match data for prediction
+                    df, top_features = match.get_match_data_for_prediction()
+                    prediction = main_ml.predict(df)
+                    logger.debug(f"Prediction for match {match.match_id}: {prediction}")
+
+                    # Add the prediction to the message
+                    message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
+                    message += "<b>----------------------------------------</b>\n"  # Separator line in bold
+
+                    # Log the message text
+                    logger.info(
+                        f"Sending message to chat {call.message.chat.id}: {message}"
+                    )
+                    self.bot.send_message(
+                        chat_id=call.message.chat.id, text=message, parse_mode="HTML"
+                    )
+            self.bot.send_message(
+                chat_id=call.message.chat.id, text="<b>DONE</b>", parse_mode="HTML"
+            )
+            logger.info("Dota2 matches markup generation completed.")
+        except Exception as e:
+            logger.error(f"Error while generating Dota2 matches markup: {str(e)}")
 
     def gen_match_markup_by_id(self, call):
+        logger.info(f"Generating match markup by ID for call: {call}")
         dota_api = Dota2API(steam_api_key)
         self.markup = dota_api.get_match_as_buttons(self.markup)
         return self.markup
 
     def gen_hero_match_markup_by_id(self, call):
+        logger.info(f"Generating hero match markup by ID for call: {call}")
         dota_api = Dota2API(steam_api_key)
         self.markup = dota_api.get_hero_match_as_buttons(self.markup)
         return self.markup
 
     def make_prediction_for_selected_match(self, call, match_id):
+        logger.info(f"Making prediction for selected match ID: {match_id}")
         self.bot.send_message(
             chat_id=call.message.chat.id,
             text="Task started. This may take around 5 minutes. Please wait...",
         )
         dota_api = Dota2API(steam_api_key)
         match = dota_api.build_single_match(match_id=match_id)
-        message = ""
-        message += f"<b>Match ID:</b> {match.match_id}\n"
-        message += f"<b>Dire Team {Icons.direIcon} :</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
-        message += "<b>Players:</b>\n"
+        message = (
+            f"<b>Match ID:</b> {match.match_id}\n"
+            f"<b>Dire Team {Icons.direIcon}:</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
+            "<b>Players:</b>\n"
+        )
 
         # List Dire team players
         for player in match.dire_team.players:
@@ -832,8 +968,10 @@ class Markups:
                 f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
             )
 
-        message += f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
-        message += "<b>Players:</b>\n"
+        message += (
+            f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
+            "<b>Players:</b>\n"
+        )
 
         # List Radiant team players
         for player in match.radiant_team.players:
@@ -844,24 +982,29 @@ class Markups:
         # Prepare match data for prediction
         df, top_features = match.get_match_data_for_prediction()
         prediction = main_ml.predict(df)
-        # Add the prediction to the message
         message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
         message += "<b>----------------------------------------</b>\n"  # Separator line in bold
+
+        # Log the message text
+        logger.info(f"Sending message to chat {call.message.chat.id}: {message}")
         self.bot.send_message(
             chat_id=call.message.chat.id, text=message, parse_mode="HTML"
         )
+        logger.info(f"Prediction for match ID {match_id} sent successfully.")
 
     def make_hero_pick_prediction_for_selected_match(self, call, match_id):
+        logger.info(f"Making hero pick prediction for match ID: {match_id}")
         self.bot.send_message(
             chat_id=call.message.chat.id,
             text="Task started. This may take around 5 minutes. Please wait...",
         )
         dota_api = Dota2API(steam_api_key)
         match = dota_api.build_single_match(match_id=match_id)
-        message = ""
-        message += f"<b>Match ID:</b> {match.match_id}\n"
-        message += f"<b>Dire Team {Icons.direIcon} :</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
-        message += "<b>Players:</b>\n"
+        message = (
+            f"<b>Match ID:</b> {match.match_id}\n"
+            f"<b>Dire Team {Icons.direIcon}:</b> {match.dire_team.team_name} (ID: {match.dire_team.team_id})\n"
+            "<b>Players:</b>\n"
+        )
 
         # List Dire team players
         for player in match.dire_team.players:
@@ -869,8 +1012,10 @@ class Markups:
                 f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
             )
 
-        message += f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
-        message += "<b>Players:</b>\n"
+        message += (
+            f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
+            "<b>Players:</b>\n"
+        )
 
         # List Radiant team players
         for player in match.radiant_team.players:
@@ -881,9 +1026,12 @@ class Markups:
         # Prepare match data for prediction
         df, top_features = match.get_hero_match_data_for_prediction()
         prediction = hero_pick_ml.predict(df)
-        # Add the prediction to the message
         message += f"\n<b>Prediction:</b> {'Radiant pick is stronger' if prediction[0] == 1 else 'Dire pick is stronger'}\n"
         message += "<b>----------------------------------------</b>\n"  # Separator line in bold
+
+        # Log the message text
+        logger.info(f"Sending message to chat {call.message.chat.id}: {message}")
         self.bot.send_message(
             chat_id=call.message.chat.id, text=message, parse_mode="HTML"
         )
+        logger.info(f"Hero pick prediction for match ID {match_id} sent successfully.")

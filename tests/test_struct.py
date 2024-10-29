@@ -488,10 +488,10 @@ class TestMatch(unittest.TestCase):
             "League ID: 1\n"
             "Radiant Team: Team A\n"
             "Radiant Players:\n"
-            "    Player: 1 (Hero : Anti-Mage)\n"
+            "    Player: 1 (Hero: Anti-Mage)\n"
             "Dire Team: Team B\n"
             "Dire Players:\n"
-            "    Player: 2 (Hero : Invoker)\n"
+            "    Player: 2 (Hero: Invoker)\n"
             "Radiant Win: Yes"
         )
 
