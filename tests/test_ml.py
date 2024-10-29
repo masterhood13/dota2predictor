@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.datasets import make_classification
 from xgboost import XGBClassifier
-from ml.model import MainML  # assuming your class is saved in a file named main_ml.py
+from ml.model import MainML, logger
 
 
 class TestMainML(unittest.TestCase):
@@ -20,7 +20,8 @@ class TestMainML(unittest.TestCase):
     @patch("joblib.dump")
     @patch.object(XGBClassifier, "fit")
     def test_train_and_save_model(self, mock_fit, mock_joblib_dump, mock_predict):
-        with self.assertLogs("ml.model", level="INFO") as log:
+        # logger = logging.getLogger('ml.model')
+        with self.assertLogs(logger, level="INFO") as log:
             self.main_ml.train_and_save_model(
                 features=[f"feature_{i}" for i in range(5)], target="target"
             )
@@ -39,8 +40,7 @@ class TestMainML(unittest.TestCase):
     @patch("joblib.load")
     def test_load_model(self, mock_joblib_load):
         mock_joblib_load.return_value = XGBClassifier()
-
-        with self.assertLogs("ml.model", level="INFO") as log:
+        with self.assertLogs(logger, level="INFO") as log:
             self.main_ml.load_model()
             self.assertIn(
                 "INFO:ml.model:Model loaded from dummy_model_path.pkl", log.output
@@ -61,8 +61,7 @@ class TestMainML(unittest.TestCase):
     def test_evaluate_model(self, mock_predict):
         X_test = np.array([[0.1, 0.2, 0.3, 0.4, 0.5], [0.6, 0.7, 0.8, 0.9, 1.0]])
         y_test = np.array([0, 1])
-
-        with self.assertLogs("ml.model", level="INFO") as log:
+        with self.assertLogs(logger, level="INFO") as log:
             self.main_ml.evaluate_model(X_test, y_test)
 
             # Check for parts of the expected log output instead of exact matches

@@ -17,11 +17,8 @@ main_ml.load_model()
 hero_pick_ml = MainML(None, "xgb_model_hero_pick.pkl")
 hero_pick_ml.load_model()
 
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
 
-logger = logging.getLogger("Dota2API")
+logger = logging.getLogger(__name__)
 
 
 class Dota2API:
@@ -265,9 +262,6 @@ class Buttons:
         )
 
 
-logger = logging.getLogger("Hero")
-
-
 class Hero:
     def __init__(self, hero_id):
         self.hero_id = hero_id
@@ -339,9 +333,6 @@ class Hero:
 
     def __repr__(self):
         return f"Hero(ID: {self.hero_id}, Name: {self.name}, Features: {self.features})"
-
-
-logger = logging.getLogger("Player")
 
 
 class Player:
@@ -582,9 +573,6 @@ class Player:
         )
 
 
-logger = logging.getLogger("Team")
-
-
 class Team:
     def __init__(self, team_name: str, team_id: int):
         self.team_name = team_name
@@ -598,9 +586,6 @@ class Team:
 
     def __repr__(self):
         return f"Team({self.team_name}, ID: {self.team_id}, Players: {self.players})"
-
-
-logger = logging.getLogger("Match")
 
 
 class Match:

@@ -8,7 +8,6 @@ from xgboost import XGBClassifier
 import joblib
 import logging
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

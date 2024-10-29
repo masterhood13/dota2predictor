@@ -7,15 +7,17 @@ import joblib
 import logging
 from sklearn.preprocessing import MinMaxScaler
 
+logger = logging.getLogger(__name__)
+
 
 def find_dict_in_list(dicts, key, value):
-    logging.info(f"Searching for dictionary with {key} = {value}")
+    logger.info(f"Searching for dictionary with {key} = {value}")
     try:
         result = next(item for item in dicts if item[key] == value)
-        logging.info("Dictionary found")
+        logger.info("Dictionary found")
         return result
     except (KeyError, StopIteration):
-        logging.warning("Dictionary not found or key error occurred")
+        logger.warning("Dictionary not found or key error occurred")
         return {"sum": None, "n": 0}
 
 
@@ -24,11 +26,11 @@ def calculate_team_features(df, team_prefix):
     """
     Function to calculate team-based features for a given prefix (radiant or dire).
     """
-    logging.info(f"Calculating team-based features for {team_prefix}")
+    logger.info(f"Calculating team-based features for {team_prefix}")
 
     # Team Hero Win Rate: Average win rate of the heroes for the team
     hero_winrate_cols = [f"{team_prefix}_player_{i}_hero_winrate" for i in range(1, 6)]
-    logging.debug(f"{team_prefix} hero winrate columns: {hero_winrate_cols}")
+    logger.debug(f"{team_prefix} hero winrate columns: {hero_winrate_cols}")
     df[f"{team_prefix}_avg_hero_winrate"] = df[hero_winrate_cols].mean(axis=1)
 
     # Team Kills, Deaths, Assists, Rosh kills, last_hits, denies, hero/tower damage
@@ -43,9 +45,9 @@ def calculate_team_features(df, team_prefix):
     hero_damage_cols = [f"{team_prefix}_player_{i}_hero_damage" for i in range(1, 6)]
     tower_damage_cols = [f"{team_prefix}_player_{i}_tower_damage" for i in range(1, 6)]
 
-    logging.debug(f"{team_prefix} kills columns: {kills_cols}")
-    logging.debug(f"{team_prefix} deaths columns: {deaths_cols}")
-    logging.debug(f"{team_prefix} assists columns: {assists_cols}")
+    logger.debug(f"{team_prefix} kills columns: {kills_cols}")
+    logger.debug(f"{team_prefix} deaths columns: {deaths_cols}")
+    logger.debug(f"{team_prefix} assists columns: {assists_cols}")
 
     df[f"{team_prefix}_avg_kills"] = df[kills_cols].mean(axis=1)
     df[f"{team_prefix}_avg_deaths"] = df[deaths_cols].mean(axis=1)
@@ -61,9 +63,9 @@ def calculate_team_features(df, team_prefix):
     net_worth_cols = [f"{team_prefix}_player_{i}_net_worth" for i in range(1, 6)]
     player_level_cols = [f"{team_prefix}_player_{i}_level" for i in range(1, 6)]
 
-    logging.debug(f"{team_prefix} GPM columns: {gpm_cols}")
-    logging.debug(f"{team_prefix} XPM columns: {xpm_cols}")
-    logging.debug(f"{team_prefix} net worth columns: {net_worth_cols}")
+    logger.debug(f"{team_prefix} GPM columns: {gpm_cols}")
+    logger.debug(f"{team_prefix} XPM columns: {xpm_cols}")
+    logger.debug(f"{team_prefix} net worth columns: {net_worth_cols}")
 
     df[f"{team_prefix}_avg_gpm"] = df[gpm_cols].mean(axis=1)
     df[f"{team_prefix}_avg_xpm"] = df[xpm_cols].mean(axis=1)
@@ -74,8 +76,8 @@ def calculate_team_features(df, team_prefix):
     obs_cols = [f"{team_prefix}_player_{i}_obs_placed" for i in range(1, 6)]
     sen_cols = [f"{team_prefix}_player_{i}_sen_placed" for i in range(1, 6)]
 
-    logging.debug(f"{team_prefix} observer columns: {obs_cols}")
-    logging.debug(f"{team_prefix} sentry columns: {sen_cols}")
+    logger.debug(f"{team_prefix} observer columns: {obs_cols}")
+    logger.debug(f"{team_prefix} sentry columns: {sen_cols}")
 
     df[f"{team_prefix}_sum_obs"] = df[obs_cols].sum(axis=1)
     df[f"{team_prefix}_sum_sen"] = df[sen_cols].sum(axis=1)
@@ -84,7 +86,7 @@ def calculate_team_features(df, team_prefix):
     teamfight_participation_cols = [
         f"{team_prefix}_player_{i}_teamfight_participation" for i in range(1, 6)
     ]
-    logging.debug(
+    logger.debug(
         f"{team_prefix} teamfight participation columns: {teamfight_participation_cols}"
     )
 
@@ -93,7 +95,7 @@ def calculate_team_features(df, team_prefix):
     ].mean(axis=1)
 
     # Drop the original columns used to create these features
-    logging.info(f"Dropping original columns used to create features for {team_prefix}")
+    logger.info(f"Dropping original columns used to create features for {team_prefix}")
     df.drop(
         columns=hero_winrate_cols
         + gpm_cols
@@ -114,12 +116,12 @@ def calculate_team_features(df, team_prefix):
         inplace=True,
     )
 
-    logging.info(f"Feature calculation completed for {team_prefix}")
+    logger.info(f"Feature calculation completed for {team_prefix}")
     return df
 
 
 def calculate_player_kda(df, team_prefix):
-    logging.info(f"Calculating KDA for {team_prefix}")
+    logger.info(f"Calculating KDA for {team_prefix}")
     try:
         df[f"{team_prefix}_avg_kda"] = (
             df[f"{team_prefix}_avg_kills"] + df[f"{team_prefix}_avg_assists"]
@@ -136,16 +138,16 @@ def calculate_player_kda(df, team_prefix):
             ],
             inplace=True,
         )
-        logging.info(f"KDA calculated and relevant columns dropped for {team_prefix}")
+        logger.info(f"KDA calculated and relevant columns dropped for {team_prefix}")
 
     except Exception as e:
-        logging.error(f"Error calculating KDA for {team_prefix}: {e}")
+        logger.error(f"Error calculating KDA for {team_prefix}: {e}")
 
     return df
 
 
 def prepare_match_prediction_data(df, scaler_file_path="scaler.pkl"):
-    logging.info("Preparing match prediction data")
+    logger.info("Preparing match prediction data")
     try:
         df = calculate_team_features(df, "radiant")
         df = calculate_team_features(df, "dire")
@@ -156,7 +158,7 @@ def prepare_match_prediction_data(df, scaler_file_path="scaler.pkl"):
         try:
             df["radiant_win"] = df["radiant_win"].astype(int)
         except KeyError:
-            logging.warning("radiant_win column missing")
+            logger.warning("radiant_win column missing")
 
         df.drop(
             columns=[
@@ -181,24 +183,24 @@ def prepare_match_prediction_data(df, scaler_file_path="scaler.pkl"):
 
         if os.path.exists(scaler_file_path):
             scaler = joblib.load(scaler_file_path)
-            logging.info(f"Loaded existing scaler from {scaler_file_path}")
+            logger.info(f"Loaded existing scaler from {scaler_file_path}")
         else:
             scaler = MinMaxScaler()
             scaler.fit(df[columns_to_normalize])
             joblib.dump(scaler, scaler_file_path)
-            logging.info("No existing scaler found, created and saved a new one")
+            logger.info("No existing scaler found, created and saved a new one")
 
         df[columns_to_normalize] = scaler.transform(df[columns_to_normalize])
-        logging.info("Normalization applied")
+        logger.info("Normalization applied")
 
     except Exception as e:
-        logging.error(f"Error in prepare_match_prediction_data: {e}")
+        logger.error(f"Error in prepare_match_prediction_data: {e}")
 
     return df
 
 
 def create_hero_features(df, team_prefix):
-    logging.info(f"Creating hero features for {team_prefix}")
+    logger.info(f"Creating hero features for {team_prefix}")
     try:
         hero_columns = [
             f"{team_prefix}_hero_{i}_{n}_counter_pick"
@@ -213,16 +215,16 @@ def create_hero_features(df, team_prefix):
         df[f"{team_prefix}_avg_hero_winrate"] = df[hero_winrate_columns].mean(axis=1)
 
         df.drop(columns=hero_columns + hero_winrate_columns, inplace=True)
-        logging.info(f"Hero features created and columns dropped for {team_prefix}")
+        logger.info(f"Hero features created and columns dropped for {team_prefix}")
 
     except Exception as e:
-        logging.error(f"Error in create_hero_features for {team_prefix}: {e}")
+        logger.error(f"Error in create_hero_features for {team_prefix}: {e}")
 
     return df
 
 
 def prepare_hero_pick_data(df):
-    logging.info("Preparing hero pick data")
+    logger.info("Preparing hero pick data")
     try:
         df = create_hero_features(df, "radiant")
         df = create_hero_features(df, "dire")
@@ -230,7 +232,7 @@ def prepare_hero_pick_data(df):
         try:
             df["radiant_win"] = df["radiant_win"].astype(int)
         except KeyError:
-            logging.warning("radiant_win column missing")
+            logger.warning("radiant_win column missing")
 
         df.drop(
             columns=[
@@ -246,9 +248,9 @@ def prepare_hero_pick_data(df):
             ],
             inplace=True,
         )
-        logging.info("Hero pick data prepared and relevant columns dropped")
+        logger.info("Hero pick data prepared and relevant columns dropped")
 
     except Exception as e:
-        logging.error(f"Error in prepare_hero_pick_data: {e}")
+        logger.error(f"Error in prepare_hero_pick_data: {e}")
 
     return df

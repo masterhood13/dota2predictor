@@ -3,13 +3,10 @@
 # This code is licensed under the MIT License. See LICENSE file for details.
 
 import os
-import logging
+import logging.config
 from dotenv import load_dotenv
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
+logging.config.fileConfig("logging.conf")
 
 # Load environment variables from .env file
 load_dotenv()
