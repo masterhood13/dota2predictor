@@ -911,11 +911,15 @@ class Markups:
                     df, top_features = match.get_match_data_for_prediction()
                     main_ml = MainML(None, "xgb_model.pkl")
                     main_ml.load_model()
-                    prediction = main_ml.predict(df)
+                    prediction, probabilities = main_ml.predict(df)
+
                     logger.debug(f"Prediction for match {match.match_id}: {prediction}")
 
                     # Add the prediction to the message
                     message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
+                    radiant_prob = probabilities[0][1]  # Assuming class 1 is Radiant
+                    dire_prob = probabilities[0][0]  # Assuming class 0 is Dire
+                    message += f"<b>Probabilities:</b> Radiant: {radiant_prob:.2%}, Dire: {dire_prob:.2%}\n"
                     message += "<b>----------------------------------------</b>\n"  # Separator line in bold
 
                     # Log the message text
@@ -979,8 +983,11 @@ class Markups:
         df, top_features = match.get_match_data_for_prediction()
         main_ml = MainML(None, "xgb_model.pkl")
         main_ml.load_model()
-        prediction = main_ml.predict(df)
+        prediction, probabilities = main_ml.predict(df)
         message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
+        radiant_prob = probabilities[0][1]  # Assuming class 1 is Radiant
+        dire_prob = probabilities[0][0]  # Assuming class 0 is Dire
+        message += f"<b>Probabilities:</b> Radiant: {radiant_prob:.2%}, Dire: {dire_prob:.2%}\n"
         message += "<b>----------------------------------------</b>\n"  # Separator line in bold
 
         # Log the message text
@@ -1025,7 +1032,7 @@ class Markups:
         df, top_features = match.get_hero_match_data_for_prediction()
         hero_pick_ml = MainML(None, "xgb_model_hero_pick.pkl")
         hero_pick_ml.load_model()
-        prediction = hero_pick_ml.predict(df)
+        prediction, _ = hero_pick_ml.predict(df)
         message += f"\n<b>Prediction:</b> {'Radiant pick is stronger' if prediction[0] == 1 else 'Dire pick is stronger'}\n"
         message += "<b>----------------------------------------</b>\n"  # Separator line in bold
 
