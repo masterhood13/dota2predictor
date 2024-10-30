@@ -666,11 +666,18 @@ class TestMarkups(unittest.TestCase):
         )
 
         mock_dota_api_instance.build_single_match.return_value = mock_match
-        mock_ml.predict.return_value = [1]  # Predict Radiant Wins
+
+        # Mock the predict method to return prediction and probability
+        mock_ml_instance = mock_ml.return_value  # Get the mocked instance of MainML
+        mock_ml_instance.predict.return_value = (
+            [1],
+            [[0.2, 0.8]],
+        )  # Predict Radiant Wins with probabilities
 
         call = MagicMock()
         call.message.chat.id = 12345
 
+        # Call the method under test
         self.markups.make_prediction_for_selected_match(call, match_id=1)
 
         # Check if the bot sent the message correctly
