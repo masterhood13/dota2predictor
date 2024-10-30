@@ -11,12 +11,6 @@ from config import opendota_key, steam_api_key
 from ml.model import MainML
 from structure.helpers import prepare_match_prediction_data, prepare_hero_pick_data
 
-main_ml = MainML(None, "xgb_model.pkl")
-main_ml.load_model()
-
-hero_pick_ml = MainML(None, "xgb_model_hero_pick.pkl")
-hero_pick_ml.load_model()
-
 
 logger = logging.getLogger(__name__)
 
@@ -915,6 +909,8 @@ class Markups:
 
                     # Prepare match data for prediction
                     df, top_features = match.get_match_data_for_prediction()
+                    main_ml = MainML(None, "xgb_model.pkl")
+                    main_ml.load_model()
                     prediction = main_ml.predict(df)
                     logger.debug(f"Prediction for match {match.match_id}: {prediction}")
 
@@ -981,6 +977,8 @@ class Markups:
 
         # Prepare match data for prediction
         df, top_features = match.get_match_data_for_prediction()
+        main_ml = MainML(None, "xgb_model.pkl")
+        main_ml.load_model()
         prediction = main_ml.predict(df)
         message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
         message += "<b>----------------------------------------</b>\n"  # Separator line in bold
@@ -1025,6 +1023,8 @@ class Markups:
 
         # Prepare match data for prediction
         df, top_features = match.get_hero_match_data_for_prediction()
+        hero_pick_ml = MainML(None, "xgb_model_hero_pick.pkl")
+        hero_pick_ml.load_model()
         prediction = hero_pick_ml.predict(df)
         message += f"\n<b>Prediction:</b> {'Radiant pick is stronger' if prediction[0] == 1 else 'Dire pick is stronger'}\n"
         message += "<b>----------------------------------------</b>\n"  # Separator line in bold

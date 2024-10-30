@@ -580,48 +580,47 @@ class TestMarkups(unittest.TestCase):
         self.assertIn(mock_buttons.predict_pick_analyser_button, markup.keyboard[2])
 
     @patch("structure.struct.Dota2API")
-    @patch("structure.struct.main_ml")
+    @patch("structure.struct.MainML")
     def test_gen_dota2_matches_markup(self, mock_ml, mock_dota_api):
-        def test_gen_dota2_matches_markup(self, mock_ml, mock_dota_api):
-            mock_dota_api_instance = MagicMock()
-            mock_dota_api.return_value = mock_dota_api_instance
+        mock_dota_api_instance = MagicMock()
+        mock_dota_api.return_value = mock_dota_api_instance
 
-            mock_match = MagicMock()
-            mock_match.match_id = 1
+        mock_match = MagicMock()
+        mock_match.match_id = 1
 
-            # Set up Dire Team
-            mock_match.dire_team.team_name = "Dire Team"
-            mock_match.dire_team.team_id = 2
-            mock_match.dire_team.players = [
-                MagicMock(name="Player1", hero=MagicMock(name="Hero1"))
-            ]
+        # Set up Dire Team
+        mock_match.dire_team.team_name = "Dire Team"
+        mock_match.dire_team.team_id = 2
+        mock_match.dire_team.players = [
+            MagicMock(name="Player1", hero=MagicMock(name="Hero1"))
+        ]
 
-            # Set up Radiant Team
-            mock_match.radiant_team.team_name = "Radiant Team"
-            mock_match.radiant_team.team_id = 3
-            mock_match.radiant_team.players = [
-                MagicMock(name="Player2", hero=MagicMock(name="Hero2"))
-            ]
+        # Set up Radiant Team
+        mock_match.radiant_team.team_name = "Radiant Team"
+        mock_match.radiant_team.team_id = 3
+        mock_match.radiant_team.players = [
+            MagicMock(name="Player2", hero=MagicMock(name="Hero2"))
+        ]
 
-            # Mocking the method to return a dataframe and top features
-            mock_match.get_match_data_for_prediction.return_value = (
-                MagicMock(),
-                MagicMock(),
-            )
+        # Mocking the method to return a dataframe and top features
+        mock_match.get_match_data_for_prediction.return_value = (
+            MagicMock(),
+            MagicMock(),
+        )
 
-            mock_dota_api_instance.get_live_tournaments.return_value = [
-                MagicMock(name="Tournament", matches=[mock_match])
-            ]
+        mock_dota_api_instance.get_live_tournaments.return_value = [
+            MagicMock(name="Tournament", matches=[mock_match])
+        ]
 
-            mock_ml.predict.return_value = [1]  # Predict Radiant Wins
+        mock_ml.predict.return_value = [1]  # Predict Radiant Wins
 
-            call = MagicMock()
-            call.message.chat.id = 12345
+        call = MagicMock()
+        call.message.chat.id = 12345
 
-            self.markups.gen_dota2_matches_markup(call)
+        self.markups.gen_dota2_matches_markup(call)
 
-            # Check if the bot sent messages correctly
-            self.bot.send_message.assert_called()
+        # Check if the bot sent messages correctly
+        self.bot.send_message.assert_called()
 
     @patch("structure.struct.Dota2API")
     def test_gen_match_markup_by_id(self, mock_dota_api):
@@ -638,7 +637,7 @@ class TestMarkups(unittest.TestCase):
         self.assertEqual(markup, "Mocked Buttons")
 
     @patch("structure.struct.Dota2API")
-    @patch("structure.struct.main_ml")
+    @patch("structure.struct.MainML")
     def test_make_prediction_for_selected_match(self, mock_ml, mock_dota_api):
         mock_dota_api_instance = MagicMock()
         mock_dota_api.return_value = mock_dota_api_instance
