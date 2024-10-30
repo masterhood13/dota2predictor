@@ -9,7 +9,7 @@
 
 ## Overview
 
-This project is a Telegram bot that leverages a TensorFlow neural network model to predict the outcomes of Dota 2 matches. The bot provides users with real-time predictions based on current match data, making it a useful tool for Dota 2 enthusiasts and analysts.
+This project is a Telegram bot that leverages a XGBoost neural network model to predict the outcomes of Dota 2 matches. The bot provides users with real-time predictions based on current match data, making it a useful tool for Dota 2 enthusiasts and analysts.
 
 ## Features
 
@@ -22,7 +22,7 @@ This project is a Telegram bot that leverages a TensorFlow neural network model 
 ## Technologies Used
 
 - **Programming Language**: Python
-- **Machine Learning Framework**: TensorFlow
+- **Machine Learning Framework**: XGBoost
 - **APIs**: OpenDota API, Steam API
 - **Bot Framework**: python-telegram-bot
 
@@ -138,7 +138,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 - [My Medium Article Part 1](https://medium.com/@masterhood13/building-a-dota-2-match-outcome-predictor-my-journey-and-learnings-fd60e1a79a23)
 - [OpenDota API](https://docs.opendota.com/)
 - [Steam API](https://steamapi.xpaw.me/)
-- [PyTorch](https://pytorch.org/)
+- [XGBoost](https://xgboost.readthedocs.io/en/stable/python/python_intro.html)
 - [pyTelegramBotAPI](https://pypi.org/project/pyTelegramBotAPI/)
 
 ---
