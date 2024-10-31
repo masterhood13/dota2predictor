@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:17.0
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: myuser  # Set a username
+      POSTGRES_PASSWORD: mypassword  # Set a password
+      POSTGRES_DB: mydatabase  # Set a default database name
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  predictor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dota2predictor
+    environment:
+      DB_HOST: postgres_db
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

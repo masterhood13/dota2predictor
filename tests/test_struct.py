@@ -1,3 +1,7 @@
+# © 2024 Viktor Hamretskyi <masterhood13@gmail.com>
+# All rights reserved.
+# This code is licensed under the MIT License. See LICENSE file for details.
+
 import unittest
 from unittest.mock import patch, MagicMock, Mock
 
@@ -567,6 +571,7 @@ class TestMarkups(unittest.TestCase):
     @patch("structure.struct.Buttons")
     def test_gen_main_markup(self, mock_buttons):
         # Set up mock buttons
+        mock_buttons.get_history_button = MagicMock()
         mock_buttons.dota2_get_current_matches_button = MagicMock()
         mock_buttons.predict_by_id_button = MagicMock()
         mock_buttons.predict_pick_analyser_button = MagicMock()
@@ -575,9 +580,10 @@ class TestMarkups(unittest.TestCase):
         markup = self.markups.gen_main_markup(current_user_id=1, current_channel_id=1)
 
         # Check if the buttons were added correctly
-        self.assertIn(mock_buttons.dota2_get_current_matches_button, markup.keyboard[0])
-        self.assertIn(mock_buttons.predict_by_id_button, markup.keyboard[1])
-        self.assertIn(mock_buttons.predict_pick_analyser_button, markup.keyboard[2])
+        self.assertIn(mock_buttons.get_history_button, markup.keyboard[0])
+        self.assertIn(mock_buttons.dota2_get_current_matches_button, markup.keyboard[1])
+        self.assertIn(mock_buttons.predict_by_id_button, markup.keyboard[2])
+        self.assertIn(mock_buttons.predict_pick_analyser_button, markup.keyboard[3])
 
     @patch("structure.struct.Dota2API")
     @patch("structure.struct.MainML")

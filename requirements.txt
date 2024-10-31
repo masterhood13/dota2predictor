@@ -38,3 +38,5 @@ typing_extensions==4.12.2
 urllib3==1.26.12
 pre-commit==3.8.0
 xgboost==2.1.1
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
