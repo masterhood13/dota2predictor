@@ -1,12 +1,16 @@
 # © 2024 Viktor Hamretskyi <masterhood13@gmail.com>
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
-
+import logging
 import os
 import pandas as pd
 from ml.model import MainML
 from structure.helpers import prepare_hero_pick_data
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 file_path = os.path.join("..", "dataset", "train_data", "all_data_hero_pick.csv")
 
