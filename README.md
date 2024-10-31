@@ -37,7 +37,7 @@ Running the bot with Docker Compose is a great way to manage dependencies and en
 
 2. **Prepare Your Project**: 
    Your project directory should contain the following files:
-   - `docker-compose.yml` (as described in the previous README update)
+   - `docker-compose.yml`
    - `Dockerfile` for the predictor service
    - Your source code files (including `start.py`)
 
@@ -75,10 +75,10 @@ If you prefer to run the predictor without Docker, you can do so by executing `s
    OPENDOTA_KEY=your_actual_opendota_api_key
    STEAM_API_KEY=your_actual_steam_api_key
    TELEGRAM_KEY=your_actual_telegram_bot_token
-   DB_HOST=localhost  # Or the host of your PostgreSQL server
-   DB_USER=myuser  # Your PostgreSQL username
-   DB_PASSWORD=mypassword  # Your PostgreSQL password
-   DB_NAME=mydatabase  # Your PostgreSQL database name
+   DB_HOST=localhost
+   DB_USER=myuser
+   DB_PASSWORD=mypassword
+   DB_NAME=mydatabase
    ```
 
 4. **Run the Bot**:
