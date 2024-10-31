@@ -7,8 +7,12 @@ import logging
 from io import BytesIO
 from telebot import TeleBot
 from config import telegram_key
-from db.database_operations import get_history_data_as_dataframe
-from structure.struct import Markups, CallbackTriggers
+from db.database_operations import (
+    get_history_data_as_dataframe,
+    fetch_and_update_actual_results,
+    calculate_win_rate,
+)
+from structure.struct import Markups, CallbackTriggers, Icons
 
 logger = logging.getLogger(__name__)
 bot = TeleBot(telegram_key)
@@ -109,9 +113,12 @@ def callback_query(call):
 
 @bot.message_handler(func=lambda message: True)
 def message_handler(message):
+    fetch_and_update_actual_results()
+    win_rate, total_predictions = calculate_win_rate()
     bot.send_message(
         message.chat.id,
-        "Main screen",
+        "Main screen\n"
+        f"Win Rate: {win_rate:.2%}| {total_predictions} predictions {Icons.statistic}",
         reply_markup=Markups(bot).gen_main_markup(
             message.from_user.id, message.chat.id
         ),

@@ -7,9 +7,11 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+import requests
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
-from config import DATABASE_CONFIG
+from config import DATABASE_CONFIG, opendota_key
 from db.setup import History
 
 
@@ -139,3 +141,101 @@ def get_history_data_as_dataframe():
     finally:
         session.close()
         logger.info("Database session closed after retrieving data.")
+
+
+def fetch_and_update_actual_results():
+    """Fetches actual results from OpenDota for matches with None actual_result and updates the database."""
+    session = get_database_session()
+    try:
+        # Query to find all entries with actual_result as None
+        matches_to_update = (
+            session.query(History).filter(History.actual_result.is_(None)).all()
+        )
+
+        logger.info(f"Found {len(matches_to_update)} matches with None actual_result.")
+
+        for match in matches_to_update:
+            match_id = match.match_id
+            logger.info(f"Fetching data for match_id={match_id} from OpenDota API...")
+
+            # Fetch match data from OpenDota API
+            response = requests.get(
+                f"https://api.opendota.com/api/matches/{match_id}?api_key={opendota_key}"
+            )
+
+            if response.status_code == 200:
+                match_data = response.json()
+                actual_result = match_data.get(
+                    "radiant_win"
+                )  # Example field; adjust based on actual data structure
+
+                if actual_result is not None:
+                    logger.info(
+                        f"Updating actual_result for match_id={match_id} to {actual_result}."
+                    )
+                    match.actual_result = int(
+                        actual_result
+                    )  # Assuming actual_result is binary (1 for win, 0 for loss)
+                    session.commit()  # Commit the changes
+                else:
+                    logger.warning(f"No actual result found for match_id={match_id}.")
+            else:
+                logger.error(
+                    f"Failed to fetch data for match_id={match_id}: HTTP {response.status_code}"
+                )
+
+    except SQLAlchemyError as e:
+        logger.error(f"Database error occurred: {e}")
+        session.rollback()
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+    finally:
+        session.close()
+        logger.info("Database session closed after processing.")
+
+
+def calculate_win_rate():
+    """Calculates the win rate based on actual_result and model_prediction from the history table.
+
+    Returns:
+        tuple: A tuple containing the win rate (float) and the total number of predictions (int).
+    """
+    session = get_database_session()
+    try:
+        # Query to fetch all relevant data
+        results = (
+            session.query(History)
+            .filter(
+                History.actual_result.isnot(None), History.model_prediction.isnot(None)
+            )
+            .all()
+        )
+
+        total_predictions = len(results)
+        correct_predictions = 0
+
+        # Calculate the number of correct predictions
+        for record in results:
+            if record.actual_result == record.model_prediction:
+                correct_predictions += 1
+
+        # Calculate win rate
+        if total_predictions > 0:
+            win_rate = correct_predictions / total_predictions
+        else:
+            win_rate = 0  # Avoid division by zero
+
+        logger.info(
+            f"Total Predictions: {total_predictions}, Correct Predictions: {correct_predictions}, Win Rate: {win_rate:.2%}"
+        )
+
+        # Return both win rate and total predictions
+        return win_rate, total_predictions
+
+    except Exception as e:
+        logger.error(f"Error calculating win rate: {e}")
+        return None, 0  # Return None and 0 predictions on error
+
+    finally:
+        session.close()
+        logger.info("Database session closed after calculating win rate.")

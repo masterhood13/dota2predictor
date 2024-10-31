@@ -221,6 +221,7 @@ class Icons:
     radiantIcon = "\U0001F607"
     reload = "\U0001F503"
     history = "\U0001F4DC"
+    statistic = "\U0001F4CA"
 
 
 class Buttons:
