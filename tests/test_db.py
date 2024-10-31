@@ -6,13 +6,17 @@ import unittest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 import numpy as np
+from sqlalchemy.exc import SQLAlchemyError
 
 from db.database_operations import (
     insert_match_result,
     update_actual_result,
     get_history_data_as_dataframe,
     convert_to_native_type,
+    fetch_and_update_actual_results,
+    calculate_win_rate,
 )
+from db.setup import History
 
 
 class TestDatabaseOperations(unittest.TestCase):
@@ -149,3 +153,151 @@ class TestDatabaseOperations(unittest.TestCase):
 
         # Test passing a regular float
         self.assertEqual(convert_to_native_type(42.0), 42.0)
+
+    @patch("db.database_operations.get_database_session")
+    @patch("db.database_operations.requests.get")
+    def test_fetch_and_update_actual_results(self, mock_get, mock_get_session):
+        # Mocking the session and its methods
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Prepare mock data
+        match_to_update = History(match_id=12345, actual_result=None)
+        mock_session.query.return_value.filter.return_value.all.return_value = [
+            match_to_update
+        ]
+
+        # Mocking the API response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"radiant_win": True}
+        mock_get.return_value = mock_response
+
+        # Call the function
+        fetch_and_update_actual_results()
+
+        # Assertions
+        mock_session.commit.assert_called_once()
+        self.assertEqual(
+            match_to_update.actual_result, 1
+        )  # Assuming True translates to 1
+
+    @patch("db.database_operations.get_database_session")
+    def test_fetch_and_update_no_matches(self, mock_get_session):
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Mocking no entries with actual_result as None
+        mock_session.query.return_value.filter.return_value.all.return_value = []
+
+        # Call the function
+        fetch_and_update_actual_results()
+
+        # Assertions
+        mock_session.commit.assert_not_called()  # No commit should happen
+
+    @patch("db.database_operations.get_database_session")
+    @patch("db.database_operations.requests.get")
+    def test_fetch_and_update_api_failure(self, mock_get, mock_get_session):
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        match_to_update = History(match_id=12345, actual_result=None)
+        mock_session.query.return_value.filter.return_value.all.return_value = [
+            match_to_update
+        ]
+
+        # Mocking the API response with failure
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        # Call the function
+        fetch_and_update_actual_results()
+
+        # Assertions
+        mock_session.commit.assert_not_called()  # No commit should happen
+        self.assertIsNone(
+            match_to_update.actual_result
+        )  # actual_result should remain None
+
+    @patch("db.database_operations.get_database_session")
+    @patch("db.database_operations.requests.get")
+    def test_fetch_and_update_no_actual_result_in_response(
+        self, mock_get, mock_get_session
+    ):
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        match_to_update = History(match_id=12345, actual_result=None)
+        mock_session.query.return_value.filter.return_value.all.return_value = [
+            match_to_update
+        ]
+
+        # Mocking the API response with no actual result
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}  # No "radiant_win" field
+        mock_get.return_value = mock_response
+
+        # Call the function
+        fetch_and_update_actual_results()
+
+        # Assertions
+        mock_session.commit.assert_not_called()  # No commit should happen
+        self.assertIsNone(
+            match_to_update.actual_result
+        )  # actual_result should remain None
+
+    @patch("db.database_operations.get_database_session")
+    def test_calculate_win_rate(self, mock_get_session):
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Prepare mock data
+        history_data = [
+            History(actual_result=1, model_prediction=1),  # Correct
+            History(actual_result=0, model_prediction=1),  # Incorrect
+            History(actual_result=1, model_prediction=0),  # Incorrect
+            History(actual_result=1, model_prediction=1),  # Correct
+        ]
+        mock_session.query.return_value.filter.return_value.all.return_value = (
+            history_data
+        )
+
+        # Call the function
+        win_rate, total_predictions = calculate_win_rate()
+
+        # Assertions
+        self.assertEqual(total_predictions, 4)
+        self.assertEqual(win_rate, 0.5)  # 2 out of 4 are correct
+
+    @patch("db.database_operations.get_database_session")
+    def test_calculate_win_rate_no_predictions(self, mock_get_session):
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Mocking no predictions
+        mock_session.query.return_value.filter.return_value.all.return_value = []
+
+        # Call the function
+        win_rate, total_predictions = calculate_win_rate()
+
+        # Assertions
+        self.assertEqual(total_predictions, 0)
+        self.assertEqual(win_rate, 0)
+
+    @patch("db.database_operations.get_database_session")
+    def test_calculate_win_rate_database_error(self, mock_get_session):
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Mocking a database error
+        mock_session.query.side_effect = SQLAlchemyError("Database error")
+
+        # Call the function
+        win_rate, total_predictions = calculate_win_rate()
+
+        # Assertions
+        self.assertEqual(total_predictions, 0)
+        self.assertIsNone(win_rate)
