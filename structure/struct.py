@@ -8,6 +8,7 @@ import requests
 import logging
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import opendota_key, steam_api_key
+from db.database_operations import insert_match_result
 from ml.model import MainML
 from structure.helpers import prepare_match_prediction_data, prepare_hero_pick_data
 
@@ -211,6 +212,7 @@ class CallbackTriggers:
     predict_pick_analyser_trigger = "cb_pick_analyser"
     match_trigger = "['cb_match_t'"
     hero_match_trigger = "['cb_hero_match_t'"
+    get_history_of_predictions_trigger = "cb_history"
 
 
 class Icons:
@@ -218,12 +220,19 @@ class Icons:
     direIcon = "\U0001F47F"
     radiantIcon = "\U0001F607"
     reload = "\U0001F503"
+    history = "\U0001F4DC"
+    statistic = "\U0001F4CA"
 
 
 class Buttons:
     dota2_get_current_matches_button = InlineKeyboardButton(
         "Predict all matches at once",
         callback_data=CallbackTriggers.dota2_get_current_matches_trigger,
+    )
+
+    get_history_button = InlineKeyboardButton(
+        f"Get predictions history {Icons.history}",
+        callback_data=CallbackTriggers.get_history_of_predictions_trigger,
     )
 
     predict_by_id_button = InlineKeyboardButton(
@@ -868,6 +877,7 @@ class Markups:
         logger.info(
             f"Generating main markup for user {current_user_id} in channel {current_channel_id}."
         )
+        self.markup.add(Buttons.get_history_button)
         self.markup.add(Buttons.dota2_get_current_matches_button)
         self.markup.add(Buttons.predict_by_id_button)
         self.markup.add(Buttons.predict_pick_analyser_button)
@@ -984,6 +994,76 @@ class Markups:
         main_ml = MainML(None, "xgb_model.pkl")
         main_ml.load_model()
         prediction, probabilities = main_ml.predict(df)
+
+        row = df.iloc[0]  # Access the first row of the DataFrame
+
+        model_prediction = prediction[0]
+
+        radiant_avg_hero_winrate = row["radiant_avg_hero_winrate"]
+        radiant_avg_roshans_killed = row["radiant_avg_roshans_killed"]
+        radiant_avg_last_hits = row["radiant_avg_last_hits"]
+        radiant_avg_denies = row["radiant_avg_denies"]
+        radiant_avg_hero_damage = row["radiant_avg_hero_damage"]
+        radiant_avg_gpm = row["radiant_avg_gpm"]
+        radiant_avg_xpm = row["radiant_avg_xpm"]
+        radiant_avg_net_worth = row["radiant_avg_net_worth"]
+        radiant_avg_player_level = row["radiant_avg_player_level"]
+        radiant_sum_obs = row["radiant_sum_obs"]
+        radiant_sum_sen = row["radiant_sum_sen"]
+        radiant_avg_teamfight_participation_cols = row[
+            "radiant_avg_teamfight_participation_cols"
+        ]
+
+        dire_avg_hero_winrate = row["dire_avg_hero_winrate"]
+        dire_avg_roshans_killed = row["dire_avg_roshans_killed"]
+        dire_avg_last_hits = row["dire_avg_last_hits"]
+        dire_avg_denies = row["dire_avg_denies"]
+        dire_avg_hero_damage = row["dire_avg_hero_damage"]
+        dire_avg_gpm = row["dire_avg_gpm"]
+        dire_avg_xpm = row["dire_avg_xpm"]
+        dire_avg_net_worth = row["dire_avg_net_worth"]
+        dire_avg_player_level = row["dire_avg_player_level"]
+        dire_sum_obs = row["dire_sum_obs"]
+        dire_sum_sen = row["dire_sum_sen"]
+        dire_avg_teamfight_participation_cols = row[
+            "dire_avg_teamfight_participation_cols"
+        ]
+
+        radiant_avg_kda = row["radiant_avg_kda"]
+        dire_avg_kda = row["dire_avg_kda"]
+
+        # Call the insert function to add the match result to the database
+        insert_match_result(
+            match_id=match_id,
+            model_prediction=model_prediction,
+            radiant_avg_hero_winrate=radiant_avg_hero_winrate,
+            radiant_avg_roshans_killed=radiant_avg_roshans_killed,
+            radiant_avg_last_hits=radiant_avg_last_hits,
+            radiant_avg_denies=radiant_avg_denies,
+            radiant_avg_hero_damage=radiant_avg_hero_damage,
+            radiant_avg_gpm=radiant_avg_gpm,
+            radiant_avg_xpm=radiant_avg_xpm,
+            radiant_avg_net_worth=radiant_avg_net_worth,
+            radiant_avg_player_level=radiant_avg_player_level,
+            radiant_sum_obs=radiant_sum_obs,
+            radiant_sum_sen=radiant_sum_sen,
+            radiant_avg_teamfight_participation_cols=radiant_avg_teamfight_participation_cols,
+            dire_avg_hero_winrate=dire_avg_hero_winrate,
+            dire_avg_roshans_killed=dire_avg_roshans_killed,
+            dire_avg_last_hits=dire_avg_last_hits,
+            dire_avg_denies=dire_avg_denies,
+            dire_avg_hero_damage=dire_avg_hero_damage,
+            dire_avg_gpm=dire_avg_gpm,
+            dire_avg_xpm=dire_avg_xpm,
+            dire_avg_net_worth=dire_avg_net_worth,
+            dire_avg_player_level=dire_avg_player_level,
+            dire_sum_obs=dire_sum_obs,
+            dire_sum_sen=dire_sum_sen,
+            dire_avg_teamfight_participation_cols=dire_avg_teamfight_participation_cols,
+            radiant_avg_kda=radiant_avg_kda,
+            dire_avg_kda=dire_avg_kda,
+        )
+
         message += f"\n<b>Prediction:</b> {'Radiant Wins' if prediction[0] == 1 else 'Dire Wins'}\n"
         radiant_prob = probabilities[0][1]  # Assuming class 1 is Radiant
         dire_prob = probabilities[0][0]  # Assuming class 0 is Dire
