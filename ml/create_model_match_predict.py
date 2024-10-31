@@ -3,12 +3,18 @@
 # This code is licensed under the MIT License. See LICENSE file for details.
 
 import os
+import logging
 import pandas as pd
 from ml.model import MainML
 from structure.helpers import prepare_match_prediction_data
 
 
-file_path = os.path.join("..", "dataset", "train_data", "all_data.csv")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+file_path = os.path.join("..", "dataset", "train_data", "all_data_match_predict.csv")
 scaler_path = "../scaler.pkl"
 
 # Load and prepare the dataset

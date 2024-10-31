@@ -79,5 +79,7 @@ class MainML:
 
         # Ensure that the new_data has the same features as the training set
         prediction = self.xgb_model.predict(new_data)
+        probability = self.xgb_model.predict_proba(new_data)
         logger.info("Predictions generated: %s", prediction)
-        return prediction
+        logger.info("Prediction probabilities generated: %s", probability)
+        return prediction, probability

@@ -1,3 +1,7 @@
+# © 2024 Viktor Hamretskyi <masterhood13@gmail.com>
+# All rights reserved.
+# This code is licensed under the MIT License. See LICENSE file for details.
+
 import unittest
 from unittest.mock import patch
 import pandas as pd
@@ -49,13 +53,19 @@ class TestMainML(unittest.TestCase):
         mock_joblib_load.assert_called_once_with(self.model_path)
 
     @patch.object(XGBClassifier, "predict", return_value=np.array([1]))
-    def test_predict(self, mock_predict):
+    @patch.object(XGBClassifier, "predict_proba", return_value=np.array([[0.2, 0.8]]))
+    def test_predict(self, mock_predict_proba, mock_predict):
         new_data = np.array([[0.1, 0.2, 0.3, 0.4, 0.5]])
 
-        prediction = self.main_ml.predict(new_data)
+        predictions, probabilities = self.main_ml.predict(new_data)
 
+        # Assert the predict method was called correctly
         mock_predict.assert_called_once_with(new_data)
-        self.assertEqual(prediction[0], 1)
+        mock_predict_proba.assert_called_once_with(new_data)
+
+        # Assert predictions and probabilities are as expected
+        self.assertEqual(predictions[0], 1)
+        np.testing.assert_array_equal(probabilities, [[0.2, 0.8]])
 
     @patch.object(XGBClassifier, "predict", return_value=np.array([0, 1]))
     def test_evaluate_model(self, mock_predict):
