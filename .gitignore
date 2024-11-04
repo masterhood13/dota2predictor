@@ -58,3 +58,4 @@ Thumbs.db
 coverage.txt
 coverage.xml
 /test_scaler.pkl
+/dummy_model_path.pkl

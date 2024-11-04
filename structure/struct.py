@@ -10,8 +10,11 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import opendota_key, steam_api_key
 from db.database_operations import insert_match_result
 from ml.model import MainML
-from structure.helpers import prepare_match_prediction_data, prepare_hero_pick_data
-
+from structure.helpers import (
+    prepare_match_prediction_data,
+    prepare_hero_pick_data,
+    remove_special_chars,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -906,7 +909,7 @@ class Markups:
 
                     # List Dire team players
                     for player in match.dire_team.players:
-                        message += f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
+                        message += f"   - {remove_special_chars(player.name)} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
                     message += (
                         f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
@@ -915,7 +918,7 @@ class Markups:
 
                     # List Radiant team players
                     for player in match.radiant_team.players:
-                        message += f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
+                        message += f"   - {remove_special_chars(player.name)} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
                     # Prepare match data for prediction
                     df, top_features = match.get_match_data_for_prediction()
@@ -974,9 +977,7 @@ class Markups:
 
         # List Dire team players
         for player in match.dire_team.players:
-            message += (
-                f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
-            )
+            message += f"   - {remove_special_chars(player.name)} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
         message += (
             f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
@@ -985,9 +986,7 @@ class Markups:
 
         # List Radiant team players
         for player in match.radiant_team.players:
-            message += (
-                f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
-            )
+            message += f"   - {remove_special_chars(player.name)} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
         # Prepare match data for prediction
         df, top_features = match.get_match_data_for_prediction()
@@ -1093,9 +1092,7 @@ class Markups:
 
         # List Dire team players
         for player in match.dire_team.players:
-            message += (
-                f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
-            )
+            message += f"   - {remove_special_chars(player.name)} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
         message += (
             f"\n<b>Radiant Team {Icons.radiantIcon}:</b> {match.radiant_team.team_name} (ID: {match.radiant_team.team_id})\n"
@@ -1104,9 +1101,7 @@ class Markups:
 
         # List Radiant team players
         for player in match.radiant_team.players:
-            message += (
-                f"   - {player.name} {Icons.playerIcon}(Hero: {player.hero.name})\n"
-            )
+            message += f"   - {remove_special_chars(player.name)} {Icons.playerIcon}(Hero: {player.hero.name})\n"
 
         # Prepare match data for prediction
         df, top_features = match.get_hero_match_data_for_prediction()

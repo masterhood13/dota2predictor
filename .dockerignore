@@ -11,3 +11,4 @@ README.md
 .env
 test_scaler.pkl
 dataset
+/dummy_model_path.json

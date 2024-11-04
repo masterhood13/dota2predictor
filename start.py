@@ -6,12 +6,13 @@ import ast
 import logging
 from io import BytesIO
 from telebot import TeleBot
-from config import telegram_key
+from config import telegram_key, incremental_learning_batch
 from db.database_operations import (
     get_history_data_as_dataframe,
     fetch_and_update_actual_results,
     calculate_win_rate,
 )
+from ml.model import MainML
 from structure.struct import Markups, CallbackTriggers, Icons
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,10 @@ def callback_query(call):
 def message_handler(message):
     fetch_and_update_actual_results()
     win_rate, total_predictions = calculate_win_rate()
+    main_ml = MainML(None, "xgb_model.pkl")
+    main_ml.load_model()
+    main_ml.incremental_train_with_new_data(incremental_learning_batch)
+
     bot.send_message(
         message.chat.id,
         "Main screen\n"

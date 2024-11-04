@@ -12,8 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 from config import DATABASE_CONFIG, opendota_key
-from db.setup import History
-
+from db.setup import History, ModelTrainingMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -239,3 +238,51 @@ def calculate_win_rate():
     finally:
         session.close()
         logger.info("Database session closed after calculating win rate.")
+
+
+def update_or_create_last_trained_row_id(new_row_id):
+    session = get_database_session()
+    try:
+        # Check if a record exists
+        metadata_entry = session.query(ModelTrainingMetadata).first()
+
+        if metadata_entry:
+            # Update the existing record
+            metadata_entry.last_trained_row_id = new_row_id
+            logger.info("Updated last_trained_row_id to %s", new_row_id)
+        else:
+            # Create a new record if none exists
+            metadata_entry = ModelTrainingMetadata(last_trained_row_id=new_row_id)
+            session.add(metadata_entry)
+            logger.info("Created new last_trained_row_id entry with id %s", new_row_id)
+
+        session.commit()
+
+    except Exception as e:
+        session.rollback()
+        logger.error("Failed to update or create last_trained_row_id: %s", e)
+    finally:
+        session.close()
+
+
+def get_current_last_trained_row_id():
+    session = get_database_session()
+    try:
+        # Fetch the current (first) entry in ModelTrainingMetadata
+        metadata_entry = session.query(ModelTrainingMetadata).first()
+
+        # Return last_trained_row_id if a record is found, else return None
+        if metadata_entry:
+            logger.info(
+                "Retrieved last_trained_row_id: %s", metadata_entry.last_trained_row_id
+            )
+            return metadata_entry.last_trained_row_id
+        else:
+            logger.info("No last_trained_row_id found. Returning None.")
+            return 0
+
+    except Exception as e:
+        logger.error("Failed to retrieve last_trained_row_id: %s", e)
+        return 0
+    finally:
+        session.close()
