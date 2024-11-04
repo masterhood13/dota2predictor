@@ -28,28 +28,74 @@ This project is a Telegram bot that leverages a XGBoost neural network model to 
 
 ## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/masterhood13/dota2predictor.git
-   cd dota2predictor
-   ```
+### Running the Predictor in Docker Compose
 
-2. Install the required dependencies:
+Running the bot with Docker Compose is a great way to manage dependencies and ensure that all services are running consistently across different environments. Here’s how to do it:
+
+1. **Ensure Docker and Docker Compose are Installed**: 
+   Make sure you have Docker and Docker Compose installed on your machine.
+
+2. **Prepare Your Project**: 
+   Your project directory should contain the following files:
+   - `docker-compose.yml`
+   - `Dockerfile` for the predictor service
+   - Your source code files (including `start.py`)
+
+3. **Create a `.env` File**:
+   Ensure you have a `.env` file with your environment variables, including your OpenDota API key, Steam API key, Telegram Bot token, and database credentials.
+
+4. **Build and Run the Services**:
+   Open your terminal, navigate to your project directory, and run the following command:
    ```bash
+   docker-compose up --build
+   ```
+   This command will build your predictor image (if necessary) and start both the PostgreSQL database and the predictor bot in separate containers.
+
+5. **Accessing the Bot**:
+   Once everything is up and running, you can interact with your Telegram bot as usual.
+
+### Running the Predictor Locally
+
+If you prefer to run the predictor without Docker, you can do so by executing `start.py` directly on your local machine. Here’s how:
+
+1. **Install Required Dependencies**:
+   Make sure you have all the required dependencies installed. You can use a virtual environment for this:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
    pip install -r requirements.txt
    ```
 
-3. Here’s how your .env file might look:
-   ```bash
+2. **Set Up PostgreSQL**:
+   Ensure you have a PostgreSQL server running. You can install PostgreSQL locally or use a hosted service. Make sure to create a database and user that match the credentials in your `.env` file.
+
+3. **Create a `.env` File**:
+   Just like with Docker, you need a `.env` file. It should contain:
+   ```plaintext
    OPENDOTA_KEY=your_actual_opendota_api_key
    STEAM_API_KEY=your_actual_steam_api_key
    TELEGRAM_KEY=your_actual_telegram_bot_token
+   DB_HOST=localhost
+   DB_USER=myuser
+   DB_PASSWORD=mypassword
+   DB_NAME=mydatabase
    ```
 
-4. Run the bot:
+4. **Run the Bot**:
+   Now, you can run your bot with:
    ```bash
    python start.py
    ```
+
+5. **Accessing the Bot**:
+   Just like with Docker, you can interact with your Telegram bot.
+
+### Summary
+
+- **Docker Compose**: Good for consistency and ease of deployment across different environments. It manages all dependencies, including PostgreSQL, automatically.
+  
+- **Local Execution**: Useful for development or testing without Docker. Ensure you have all the services running locally.
+
 
 ## Usage
 
