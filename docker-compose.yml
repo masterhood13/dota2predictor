@@ -24,6 +24,8 @@ services:
       - .env
     depends_on:
       - db
+    volumes:
+      - ./xgb_model.pkl:/app/xgb_model.pkl
 
 volumes:
   postgres_data:

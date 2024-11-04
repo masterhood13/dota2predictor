@@ -26,3 +26,5 @@ DATABASE_CONFIG = {
 }
 
 create_database_and_tables(DATABASE_CONFIG)
+
+incremental_learning_batch = 50

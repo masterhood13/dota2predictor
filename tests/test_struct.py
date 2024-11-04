@@ -3,9 +3,35 @@
 # This code is licensed under the MIT License. See LICENSE file for details.
 
 import unittest
+from dataclasses import dataclass
 from unittest.mock import patch, MagicMock, Mock
 
 from structure.struct import Hero, Player, Team, Match, Tournament, Dota2API, Markups
+
+
+@dataclass
+class HeroD:
+    name: str
+
+
+@dataclass
+class PlayerD:
+    name: str
+    hero: Hero
+
+
+@dataclass
+class TeamD:
+    team_name: str
+    team_id: int
+    players: list
+
+
+@dataclass
+class MatchD:
+    match_id: int
+    dire_team: Team
+    radiant_team: Team
 
 
 class TestHero(unittest.TestCase):
@@ -648,30 +674,28 @@ class TestMarkups(unittest.TestCase):
         mock_dota_api_instance = MagicMock()
         mock_dota_api.return_value = mock_dota_api_instance
 
-        mock_match = MagicMock()
-        mock_match.match_id = 1
-
-        # Set up Dire Team
-        mock_match.dire_team.team_name = "Dire Team"
-        mock_match.dire_team.team_id = 2
-        mock_match.dire_team.players = [
-            MagicMock(hero=MagicMock(name="Hero1"), name="Player1")
-        ]
-
-        # Set up Radiant Team
-        mock_match.radiant_team.team_name = "Radiant Team"
-        mock_match.radiant_team.team_id = 3
-        mock_match.radiant_team.players = [
-            MagicMock(hero=MagicMock(name="Hero2"), name="Player2")
-        ]
-
-        # Mocking the return value for get_match_data_for_prediction
-        mock_match.get_match_data_for_prediction.return_value = (
-            MagicMock(),
-            MagicMock(),
+        # Create team instances with players
+        dire_team = TeamD(
+            team_name="Dire Team",
+            team_id=2,
+            players=[PlayerD(name="Player1", hero=HeroD(name="Hero1"))],
+        )
+        radiant_team = TeamD(
+            team_name="Radiant Team",
+            team_id=3,
+            players=[PlayerD(name="Player2", hero=HeroD(name="Hero2"))],
         )
 
+        # Create a Match instance
+        mock_match = MatchD(match_id=1, dire_team=dire_team, radiant_team=radiant_team)
+
+        # Mocking the return value for build_single_match
         mock_dota_api_instance.build_single_match.return_value = mock_match
+
+        # Mocking the return value for get_match_data_for_prediction
+        mock_match.get_match_data_for_prediction = MagicMock(
+            return_value=(MagicMock(), MagicMock())
+        )
 
         # Mock the predict method to return prediction and probability
         mock_ml_instance = mock_ml.return_value  # Get the mocked instance of MainML

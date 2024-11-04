@@ -3,11 +3,17 @@
 # This code is licensed under the MIT License. See LICENSE file for details.
 
 import os
+import re
+
 import joblib
 import logging
 from sklearn.preprocessing import MinMaxScaler
 
 logger = logging.getLogger(__name__)
+
+
+def remove_special_chars(text):
+    return re.sub(r"[^A-Za-z0-9\s]+", "", text)
 
 
 def find_dict_in_list(dicts, key, value):

@@ -50,6 +50,13 @@ class History(Base):
     dire_avg_kda = Column(Float, nullable=False)
 
 
+class ModelTrainingMetadata(Base):
+    __tablename__ = "model_training_metadata"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    last_trained_row_id = Column(Integer, nullable=False)
+
+
 def create_database_and_tables(DATABASE_CONFIG):
     # Create the database URL
     db_url = f"postgresql://{DATABASE_CONFIG['USER']}:{DATABASE_CONFIG['PASSWORD']}@{DATABASE_CONFIG['HOST']}:{DATABASE_CONFIG['PORT']}/{DATABASE_CONFIG['DB_NAME']}"
