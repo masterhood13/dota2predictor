@@ -182,6 +182,8 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ## Acknowledgments
 
 - [My Medium Article Part 1](https://medium.com/@masterhood13/building-a-dota-2-match-outcome-predictor-my-journey-and-learnings-fd60e1a79a23)
+- [My DOU Article Part 1🇺🇦](https://gamedev.dou.ua/forums/topic/50797/?from=profile_stats)
+- [My Medium Article Part 2](https://medium.com/@masterhood13/building-a-dota-2-match-outcome-predictor-part-2-enhancing-the-dataset-and-adding-new-features-3522965de468)
 - [OpenDota API](https://docs.opendota.com/)
 - [Steam API](https://steamapi.xpaw.me/)
 - [XGBoost](https://xgboost.readthedocs.io/en/stable/python/python_intro.html)
