@@ -5,6 +5,8 @@
 import ast
 import logging
 from io import BytesIO
+from threading import Thread
+
 from telebot import TeleBot
 from config import telegram_key, incremental_learning_batch
 from db.database_operations import (
@@ -43,6 +45,15 @@ class CallbackProcessor:
         )
 
     @staticmethod
+    def select_dota_plus_match_list(call):
+        bot.edit_message_text(
+            "Available matches for prediction",
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=Markups(bot).gen_dota_plus_match_markup_by_id(call),
+        )
+
+    @staticmethod
     def predict_on_selected_match(call):
         match_id = ast.literal_eval(call.data)[1]
         Markups(bot).make_prediction_for_selected_match(call, match_id)
@@ -51,6 +62,14 @@ class CallbackProcessor:
     def predict_on_selected_hero_match(call):
         match_id = ast.literal_eval(call.data)[1]
         Markups(bot).make_hero_pick_prediction_for_selected_match(call, match_id)
+
+    @staticmethod
+    def watch_dota_plus_selected_match(call):
+        match_id = ast.literal_eval(call.data)[1]
+        Thread(
+            target=Markups(bot).follow_dota_plus_for_selected_match,
+            args=(call, match_id),
+        ).start()
 
     @staticmethod
     def send_history_csv(call):
@@ -106,10 +125,14 @@ def callback_query(call):
         CallbackProcessor.select_match_list(call)
     elif call.data == CallbackTriggers.predict_pick_analyser_trigger:
         CallbackProcessor.select_hero_match_list(call)
+    elif call.data.startswith(CallbackTriggers.dota_plus_trigger):
+        CallbackProcessor.select_dota_plus_match_list(call)
     elif call.data.startswith(CallbackTriggers.match_trigger):
         CallbackProcessor.predict_on_selected_match(call)
     elif call.data.startswith(CallbackTriggers.hero_match_trigger):
         CallbackProcessor.predict_on_selected_hero_match(call)
+    elif call.data.startswith(CallbackTriggers.dota_plus_match_trigger):
+        CallbackProcessor.watch_dota_plus_selected_match(call)
 
 
 @bot.message_handler(func=lambda message: True)

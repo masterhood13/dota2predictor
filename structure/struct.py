@@ -1,8 +1,7 @@
 # © 2024 Viktor Hamretskyi <masterhood13@gmail.com>
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
-
-from time import sleep
+from time import sleep, strftime
 import pandas as pd
 import requests
 import logging
@@ -14,6 +13,7 @@ from structure.helpers import (
     prepare_match_prediction_data,
     prepare_hero_pick_data,
     remove_special_chars,
+    remove_zero_columns,
 )
 
 logger = logging.getLogger(__name__)
@@ -93,6 +93,30 @@ class Dota2API:
         logger.info("All hero match buttons added to markup.")
         return markup
 
+    def get_dota_plus_match_as_buttons(self, markup):
+        """Build and add buttons for each live match."""
+        logger.info("Building dota plus match buttons for live matches.")
+        live_matches = self.fetch_live_matches()
+        for match_data in live_matches:
+            if self.is_valid_match(match_data):
+                radiant_team, dire_team = match_data.get(
+                    "radiant_team"
+                ), match_data.get("dire_team")
+                if radiant_team and dire_team:
+                    markup.add(
+                        Buttons.dota_plus_match_button(
+                            dire_team_name=dire_team.get("team_name", "Unknown"),
+                            radiant_team_name=radiant_team.get("team_name", "Unknown"),
+                            match_id=match_data.get("match_id"),
+                        )
+                    )
+                    logger.info(
+                        f"Added dota plus button for match ID: {match_data.get('match_id')}"
+                    )
+        markup.add(Buttons.dota2_restart_button)
+        logger.info("All dota plus match buttons added to markup.")
+        return markup
+
     def build_single_match(self, match_id):
         """Build a single match object given the match_id."""
         logger.info(f"Building single match object for match ID: {match_id}.")
@@ -103,6 +127,18 @@ class Dota2API:
             ):
                 logger.info(f"Match ID {match_id} found and is valid.")
                 return self.create_match_object(match_data)
+        logger.warning(f"Match ID {match_id} not found or invalid.")
+        return None
+
+    def get_single_match_online_data(self, match_id):
+        logger.info(f"Get single match online data : {match_id}.")
+        live_matches = self.fetch_live_matches()
+        for match_data in live_matches:
+            if str(match_data.get("match_id")) == str(match_id) and self.is_valid_match(
+                match_data
+            ):
+                logger.info(f"Match ID {match_id} found and is valid.")
+                return match_data
         logger.warning(f"Match ID {match_id} not found or invalid.")
         return None
 
@@ -213,8 +249,10 @@ class CallbackTriggers:
     dota2_get_current_matches_trigger = "cb_dota2"
     predict_by_id_trigger = "cb_match_by_id"
     predict_pick_analyser_trigger = "cb_pick_analyser"
+    dota_plus_trigger = "cb_dota_plus"
     match_trigger = "['cb_match_t'"
     hero_match_trigger = "['cb_hero_match_t'"
+    dota_plus_match_trigger = "['cb_dota_plus_match_t'"
     get_history_of_predictions_trigger = "cb_history"
 
 
@@ -225,6 +263,12 @@ class Icons:
     reload = "\U0001F503"
     history = "\U0001F4DC"
     statistic = "\U0001F4CA"
+    stream = "\U0001F4F9"
+    match = "\U0001F3C1"
+    hero_strength = "\U0001F9BE"
+    match_online = "\U0001F3AE"
+    match_finished = "\U0001F3C6"
+    match_tracking = "\U0001F525"
 
 
 class Buttons:
@@ -239,13 +283,18 @@ class Buttons:
     )
 
     predict_by_id_button = InlineKeyboardButton(
-        "Predict match result",
+        f"Predict match result {Icons.match}",
         callback_data=CallbackTriggers.predict_by_id_trigger,
     )
 
     predict_pick_analyser_button = InlineKeyboardButton(
-        "Analyse pick strength",
+        f"Analyse pick strength {Icons.hero_strength}",
         callback_data=CallbackTriggers.predict_pick_analyser_trigger,
+    )
+
+    dota_plus_button = InlineKeyboardButton(
+        f"Track win probability during match (like Dota Plus) {Icons.stream}",
+        callback_data=CallbackTriggers.dota_plus_trigger,
     )
 
     dota2_restart_button = InlineKeyboardButton(
@@ -265,6 +314,13 @@ class Buttons:
         return InlineKeyboardButton(
             text=f"{match_id} | {Icons.direIcon}{dire_team_name} VS {Icons.radiantIcon}{radiant_team_name}",
             callback_data=f'{CallbackTriggers.hero_match_trigger},"{match_id}"]',
+        )
+
+    @staticmethod
+    def dota_plus_match_button(dire_team_name, radiant_team_name, match_id):
+        return InlineKeyboardButton(
+            text=f"{match_id} | {Icons.direIcon}{dire_team_name} VS {Icons.radiantIcon}{radiant_team_name}",
+            callback_data=f'{CallbackTriggers.dota_plus_match_trigger},"{match_id}"]',
         )
 
 
@@ -733,6 +789,86 @@ class Match:
             logger.error("Both teams must have exactly 5 players.")
             raise ValueError("Both teams must have exactly 5 players.")
 
+    @staticmethod
+    def get_realtime_match_data_for_prediction_win_probability(match_steam_data):
+        logger.info("Preparing match realtime data for probability prediction.")
+        if (
+            len(match_steam_data.get("scoreboard").get("radiant").get("players")) == 5
+            and len(match_steam_data.get("scoreboard").get("dire").get("players")) == 5
+        ):
+            # Initialize the match_data dictionary
+            match_data = {
+                "match_id": match_steam_data.get("match_id"),
+                "radiant_team_id": match_steam_data.get("radiant_team").get("team_id"),
+                "radiant_team_name": match_steam_data.get("radiant_team").get(
+                    "team_name"
+                ),
+                "dire_team_id": match_steam_data.get("dire_team").get("team_id"),
+                "dire_team_name": match_steam_data.get("dire_team").get("team_name"),
+            }
+
+            # Add radiant team player data (5 players)
+            for i, player in enumerate(
+                match_steam_data.get("scoreboard").get("radiant").get("players")
+            ):
+                match_data[f"radiant_player_{i + 1}_id"] = player["account_id"]
+                match_data[f"radiant_player_{i + 1}_name"] = 0
+                match_data[f"radiant_player_{i + 1}_hero_id"] = player["hero_id"]
+                match_data[f"radiant_player_{i + 1}_hero_name"] = 0
+                match_data[f"radiant_player_{i + 1}_hero_winrate"] = 0
+                match_data[f"radiant_player_{i + 1}_kills"] = player["kills"]
+                match_data[f"radiant_player_{i + 1}_deaths"] = player["death"]
+                match_data[f"radiant_player_{i + 1}_assists"] = player["assists"]
+                match_data[f"radiant_player_{i + 1}_gold_per_min"] = player[
+                    "gold_per_min"
+                ]
+                match_data[f"radiant_player_{i + 1}_xp_per_min"] = player["xp_per_min"]
+                match_data[f"radiant_player_{i + 1}_teamfight_participation"] = 0
+                match_data[f"radiant_player_{i + 1}_obs_placed"] = 0
+                match_data[f"radiant_player_{i + 1}_sen_placed"] = 0
+                match_data[f"radiant_player_{i + 1}_net_worth"] = player["net_worth"]
+                match_data[f"radiant_player_{i + 1}_roshans_killed"] = 0
+                match_data[f"radiant_player_{i + 1}_last_hits"] = player["last_hits"]
+                match_data[f"radiant_player_{i + 1}_denies"] = player["denies"]
+                match_data[f"radiant_player_{i + 1}_level"] = player["level"]
+                match_data[f"radiant_player_{i + 1}_hero_damage"] = 0
+                match_data[f"radiant_player_{i + 1}_tower_damage"] = 0
+
+            # Add dire team player data (5 players)
+            for i, player in enumerate(
+                match_steam_data.get("scoreboard").get("dire").get("players")
+            ):
+                match_data[f"dire_player_{i + 1}_id"] = player["account_id"]
+                match_data[f"dire_player_{i + 1}_name"] = 0
+                match_data[f"dire_player_{i + 1}_hero_id"] = player["hero_id"]
+                match_data[f"dire_player_{i + 1}_hero_name"] = 0
+                match_data[f"dire_player_{i + 1}_hero_winrate"] = 0
+                match_data[f"dire_player_{i + 1}_kills"] = player["kills"]
+                match_data[f"dire_player_{i + 1}_deaths"] = player["death"]
+                match_data[f"dire_player_{i + 1}_assists"] = player["assists"]
+                match_data[f"dire_player_{i + 1}_gold_per_min"] = player["gold_per_min"]
+                match_data[f"dire_player_{i + 1}_xp_per_min"] = player["xp_per_min"]
+                match_data[f"dire_player_{i + 1}_teamfight_participation"] = 0
+                match_data[f"dire_player_{i + 1}_obs_placed"] = 0
+                match_data[f"dire_player_{i + 1}_sen_placed"] = 0
+                match_data[f"dire_player_{i + 1}_net_worth"] = player["net_worth"]
+                match_data[f"dire_player_{i + 1}_roshans_killed"] = 0
+                match_data[f"dire_player_{i + 1}_last_hits"] = player["last_hits"]
+                match_data[f"dire_player_{i + 1}_denies"] = player["denies"]
+                match_data[f"dire_player_{i + 1}_level"] = player["level"]
+                match_data[f"dire_player_{i + 1}_hero_damage"] = 0
+                match_data[f"dire_player_{i + 1}_tower_damage"] = 0
+            # Convert to DataFrame
+            df = pd.DataFrame([match_data])
+            df = prepare_match_prediction_data(df, "scaler_dota_plus.pkl")
+            df = remove_zero_columns(df)
+            logger.info("Match data prepared for prediction.")
+            top_features = df.columns.tolist()
+            return df, top_features
+        else:
+            logger.error("Both teams must have exactly 5 players.")
+            raise ValueError("Both teams must have exactly 5 players.")
+
     def get_hero_match_data_for_prediction(self):
         logger.info("Preparing hero match data for prediction.")
         if len(self.radiant_team.players) == 5 and len(self.dire_team.players) == 5:
@@ -884,6 +1020,7 @@ class Markups:
         self.markup.add(Buttons.dota2_get_current_matches_button)
         self.markup.add(Buttons.predict_by_id_button)
         self.markup.add(Buttons.predict_pick_analyser_button)
+        self.markup.add(Buttons.dota_plus_button)
         return self.markup
 
     def gen_dota2_matches_markup(self, call):
@@ -959,6 +1096,12 @@ class Markups:
         logger.info(f"Generating hero match markup by ID for call: {call}")
         dota_api = Dota2API(steam_api_key)
         self.markup = dota_api.get_hero_match_as_buttons(self.markup)
+        return self.markup
+
+    def gen_dota_plus_match_markup_by_id(self, call):
+        logger.info(f"Generating dota plus match markup by ID for call: {call}")
+        dota_api = Dota2API(steam_api_key)
+        self.markup = dota_api.get_dota_plus_match_as_buttons(self.markup)
         return self.markup
 
     def make_prediction_for_selected_match(self, call, match_id):
@@ -1117,3 +1260,50 @@ class Markups:
             chat_id=call.message.chat.id, text=message, parse_mode="HTML"
         )
         logger.info(f"Hero pick prediction for match ID {match_id} sent successfully.")
+
+    def follow_dota_plus_for_selected_match(self, call, match_id):
+        logger.info(f"Follow dota plus for match ID: {match_id}")
+        dota_api = Dota2API(steam_api_key)
+        msg = self.bot.send_message(
+            call.message.chat.id,
+            f"{Icons.match_online} Match {match_id} is live! {Icons.match_tracking} Tracking win probability...",
+        )
+        main_ml = MainML(None, "xgb_model_dota_plus.pkl")
+        main_ml.load_model()
+
+        prev_match_data = None
+        prev_probabilities = None
+
+        while True:
+            match_data = dota_api.get_single_match_online_data(match_id=match_id)
+
+            # Check if the match is finished
+            if not match_data:
+                self.bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=msg.message_id,
+                    text=f"{Icons.match_finished} Match {match_id} finished!"
+                    f"Radiant Team {Icons.radiantIcon}| {prev_match_data.get('radiant_team').get('team_name')} vs Dire Team {Icons.direIcon}:|  {prev_match_data.get('dire_team').get('team_name')}\n"
+                    f"Final in game {prev_match_data.get('scoreboard').get('duration')/ 60:.2f}\n"
+                    f"Last update time: {strftime('%H:%M:%S')}"
+                    f"Final win probability: Probabilities: Radiant: {prev_probabilities[0][1]:.2%}, Dire: {prev_probabilities[0][0] :.2%}\n",
+                )
+                break  # Exit the loop when the match is finished
+            prev_match_data = match_data
+            df, top_features = (
+                Match.get_realtime_match_data_for_prediction_win_probability(match_data)
+            )
+            prediction, probabilities = main_ml.predict(df)
+            prev_probabilities = probabilities
+
+            self.bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=msg.message_id,
+                text=f"{Icons.match_online} Match is live! {Icons.match_tracking} Tracking win probability...\n"
+                f"Radiant Team {Icons.radiantIcon}| {match_data.get('radiant_team').get('team_name')} vs Dire Team {Icons.direIcon}:|  {match_data.get('dire_team').get('team_name')}\n"
+                f"Probabilities: Radiant: {probabilities[0][1]:.2%}, Dire: {probabilities[0][0] :.2%}\n"
+                f"Time in game {match_data.get('scoreboard').get('duration')/ 60:.2f}\n"
+                f"Last update time: {strftime('%H:%M:%S')}",
+            )
+
+            sleep(60)

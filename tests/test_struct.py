@@ -1,12 +1,19 @@
 # © 2024 Viktor Hamretskyi <masterhood13@gmail.com>
 # All rights reserved.
 # This code is licensed under the MIT License. See LICENSE file for details.
-
 import unittest
 from dataclasses import dataclass
 from unittest.mock import patch, MagicMock, Mock
 
-from structure.struct import Hero, Player, Team, Match, Tournament, Dota2API, Markups
+from structure.struct import (
+    Hero,
+    Player,
+    Team,
+    Match,
+    Tournament,
+    Dota2API,
+    Markups,
+)
 
 
 @dataclass
@@ -712,6 +719,120 @@ class TestMarkups(unittest.TestCase):
 
         # Check if the bot sent the message correctly
         self.bot.send_message.assert_called()
+
+    @patch("structure.struct.Dota2API")
+    @patch("structure.struct.MainML")
+    @patch("structure.struct.sleep", side_effect=None)
+    def test_follow_dota_plus_for_selected_match(
+        self, mock_sleep, mock_MainML, mock_Dota2API
+    ):
+        # Mock TeleBot instance
+        mock_bot_instance = MagicMock()
+
+        # Setup mocks for Dota2API
+        mock_api_instance = mock_Dota2API.return_value
+
+        # Mock ML model loading and prediction
+        mock_ml_instance = mock_MainML.return_value
+        mock_ml_instance.load_model.return_value = None
+        mock_ml_instance.predict.return_value = (None, [[0.7, 0.3]])
+
+        # Mock match data responses with complete structure
+        match_data_live = {
+            "radiant_team": {"team_name": "Radiant"},
+            "dire_team": {"team_name": "Dire"},
+            "scoreboard": {
+                "duration": 1800,  # 30 minutes in seconds
+                "radiant": {
+                    "players": [
+                        {
+                            "account_id": 1,
+                            "hero_id": 1,
+                            "kills": 1,
+                            "death": 1,
+                            "assists": 1,
+                            "gold_per_min": 1,
+                            "xp_per_min": 1,
+                            "net_worth": 1,
+                            "last_hits": 1,
+                            "denies": 1,
+                            "level": 1,
+                        }
+                        for _ in range(5)
+                    ]  # Mock 5 players for Radiant
+                },
+                "dire": {
+                    "players": [
+                        {
+                            "account_id": 1,
+                            "hero_id": 1,
+                            "kills": 1,
+                            "death": 1,
+                            "assists": 1,
+                            "gold_per_min": 1,
+                            "xp_per_min": 1,
+                            "net_worth": 1,
+                            "last_hits": 1,
+                            "denies": 1,
+                            "level": 1,
+                        }
+                        for _ in range(5)
+                    ]  # Mock 5 players for Dire
+                },
+            },
+        }
+        match_data_finished = None  # Match data is None when finished
+
+        # Mock the API call for match data
+        mock_api_instance.get_single_match_online_data.side_effect = [
+            match_data_live,  # 1st live update
+            match_data_finished,  # Match finished, returns None
+        ]
+
+        # Create the bot instance
+        your_bot_instance = Markups(bot=mock_bot_instance)
+
+        # Create a fake call object
+        fake_call = MagicMock()
+        fake_call.message.chat.id = 123456
+        match_id = 98765
+
+        # Mock send_message to simulate sending the first message
+        mock_msg = MagicMock()
+        mock_msg.message_id = 1111
+        mock_bot_instance.send_message.return_value = mock_msg
+
+        # Invoke the method
+        your_bot_instance.follow_dota_plus_for_selected_match(fake_call, match_id)
+
+        # Check if `edit_message_text` was called
+        edit_calls = mock_bot_instance.edit_message_text.call_args_list
+        print(
+            "Edit message calls:", edit_calls
+        )  # Debugging step to see what was captured
+
+        # Assertions for `edit_message_text`
+        self.assertEqual(len(edit_calls), 2, "Expected 2 edit message calls")
+
+        # Check the first call: the match is still live
+        first_call_args = edit_calls[0].kwargs
+        self.assertEqual(len(first_call_args), 3, "First call should have 3 arguments")
+        print("First call args:", first_call_args)  # Debugging step
+        self.assertIn("Match is live", first_call_args["text"])
+        self.assertIn("Radiant vs Dire", first_call_args["text"])
+        self.assertIn(
+            "Probabilities: Radiant: 30.00%, Dire: 70.00%", first_call_args["text"]
+        )
+
+        # Check the second call: the match is finished
+        second_call_args = edit_calls[1].kwargs
+        self.assertEqual(
+            len(second_call_args), 3, "Second call should have 3 arguments"
+        )
+        print("Second call args:", second_call_args)  # Debugging step
+        self.assertIn(f"Match {match_id} finished", second_call_args["text"])
+        self.assertIn("Radiant vs Dire", second_call_args["text"])
+        self.assertIn("Final win probability", second_call_args["text"])
 
 
 class TestDota2API(unittest.TestCase):
