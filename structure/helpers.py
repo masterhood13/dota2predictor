@@ -16,6 +16,37 @@ def remove_special_chars(text):
     return re.sub(r"[^A-Za-z0-9\s]+", "", text)
 
 
+def remove_zero_columns(df):
+    """
+    Remove columns from a DataFrame that match predefined patterns.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+        pd.DataFrame: A cleaned DataFrame with specific columns removed.
+    """
+    player_attributes = [
+        "avg_hero_winrate",
+        "avg_teamfight_participation_cols",
+        "sum_obs",
+        "sum_sen",
+        "avg_roshans_killed",
+        "avg_hero_damage",
+        "avg_tower_damage",
+    ]
+
+    # Generate columns for both Radiant and Dire teams (5 players each)
+    columns_to_remove = [
+        f"{team}_{attr}" for team in ["radiant", "dire"] for attr in player_attributes
+    ]
+    df_cleaned = df.drop(
+        columns=[col for col in columns_to_remove if col in df.columns]
+    )
+
+    return df_cleaned
+
+
 def find_dict_in_list(dicts, key, value):
     logger.info(f"Searching for dictionary with {key} = {value}")
     try:

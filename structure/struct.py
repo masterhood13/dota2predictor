@@ -13,6 +13,7 @@ from structure.helpers import (
     prepare_match_prediction_data,
     prepare_hero_pick_data,
     remove_special_chars,
+    remove_zero_columns,
 )
 
 logger = logging.getLogger(__name__)
@@ -857,10 +858,10 @@ class Match:
                 match_data[f"dire_player_{i + 1}_level"] = player["level"]
                 match_data[f"dire_player_{i + 1}_hero_damage"] = 0
                 match_data[f"dire_player_{i + 1}_tower_damage"] = 0
-
             # Convert to DataFrame
             df = pd.DataFrame([match_data])
-            df = prepare_match_prediction_data(df, "scaler.pkl")
+            df = prepare_match_prediction_data(df, "scaler_dota_plus.pkl")
+            df = remove_zero_columns(df)
             logger.info("Match data prepared for prediction.")
             top_features = df.columns.tolist()
             return df, top_features
@@ -1267,7 +1268,7 @@ class Markups:
             call.message.chat.id,
             f"{Icons.match_online} Match {match_id} is live! {Icons.match_tracking} Tracking win probability...",
         )
-        main_ml = MainML(None, "xgb_model.pkl")
+        main_ml = MainML(None, "xgb_model_dota_plus.pkl")
         main_ml.load_model()
 
         prev_match_data = None
