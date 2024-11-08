@@ -1270,24 +1270,30 @@ class Markups:
         main_ml = MainML(None, "xgb_model.pkl")
         main_ml.load_model()
 
+        prev_match_data = None
+        prev_probabilities = None
+
         while True:
             match_data = dota_api.get_single_match_online_data(match_id=match_id)
-            df, top_features = (
-                Match.get_realtime_match_data_for_prediction_win_probability(match_data)
-            )
-            prediction, probabilities = main_ml.predict(df)
+
             # Check if the match is finished
             if not match_data:
                 self.bot.edit_message_text(
                     chat_id=call.message.chat.id,
                     message_id=msg.message_id,
                     text=f"{Icons.match_finished} Match {match_id} finished!"
-                    f"Radiant Team {Icons.radiantIcon}| {match_data.get('radiant_team').get('team_name')} vs Dire Team {Icons.direIcon}:|  {match_data.get('dire_team').get('team_name')}\n"
-                    f"Final in game {match_data.get('scoreboard').get('duration')/ 60:.2f}\n"
+                    f"Radiant Team {Icons.radiantIcon}| {prev_match_data.get('radiant_team').get('team_name')} vs Dire Team {Icons.direIcon}:|  {prev_match_data.get('dire_team').get('team_name')}\n"
+                    f"Final in game {prev_match_data.get('scoreboard').get('duration')/ 60:.2f}\n"
                     f"Last update time: {strftime('%H:%M:%S')}"
-                    f"Final win probability: Probabilities: Radiant: {probabilities[0][1]:.2%}, Dire: {probabilities[0][0] :.2%}\n",
+                    f"Final win probability: Probabilities: Radiant: {prev_probabilities[0][1]:.2%}, Dire: {prev_probabilities[0][0] :.2%}\n",
                 )
                 break  # Exit the loop when the match is finished
+            prev_match_data = match_data
+            df, top_features = (
+                Match.get_realtime_match_data_for_prediction_win_probability(match_data)
+            )
+            prediction, probabilities = main_ml.predict(df)
+            prev_probabilities = probabilities
 
             self.bot.edit_message_text(
                 chat_id=call.message.chat.id,

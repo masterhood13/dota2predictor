@@ -15,8 +15,10 @@ from db.database_operations import (
     convert_to_native_type,
     fetch_and_update_actual_results,
     calculate_win_rate,
+    get_current_last_trained_row_id,
+    update_or_create_last_trained_row_id,
 )
-from db.setup import History
+from db.setup import History, ModelTrainingMetadata
 
 
 class TestDatabaseOperations(unittest.TestCase):
@@ -301,3 +303,105 @@ class TestDatabaseOperations(unittest.TestCase):
         # Assertions
         self.assertEqual(total_predictions, 0)
         self.assertIsNone(win_rate)
+
+    @patch("db.database_operations.get_database_session")
+    def test_update_or_create_new_entry(self, mock_get_session):
+        # Mock the session and its behavior
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+        mock_session.query(ModelTrainingMetadata).first.return_value = None
+
+        # Call the function to test
+        new_row_id = 123
+        update_or_create_last_trained_row_id(new_row_id)
+
+        # Verify a new entry was created
+        mock_session.add.assert_called_once()
+        metadata_entry = mock_session.add.call_args[0][0]
+        self.assertEqual(metadata_entry.last_trained_row_id, new_row_id)
+        mock_session.commit.assert_called_once()
+
+    @patch("db.database_operations.get_database_session")
+    def test_update_existing_entry(self, mock_get_session):
+        # Mock the session and its behavior
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Create a mock metadata entry with an existing row ID
+        mock_metadata_entry = ModelTrainingMetadata(last_trained_row_id=100)
+        mock_session.query(ModelTrainingMetadata).first.return_value = (
+            mock_metadata_entry
+        )
+
+        # Call the function to test
+        new_row_id = 456
+        update_or_create_last_trained_row_id(new_row_id)
+
+        # Verify the existing entry was updated
+        self.assertEqual(mock_metadata_entry.last_trained_row_id, new_row_id)
+        mock_session.commit.assert_called_once()
+
+    @patch("db.database_operations.get_database_session")
+    def test_get_existing_last_trained_row_id(self, mock_get_session):
+        # Mock the session and its behavior
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Mock a metadata entry with a specific row ID
+        mock_metadata_entry = ModelTrainingMetadata(last_trained_row_id=789)
+        mock_session.query(ModelTrainingMetadata).first.return_value = (
+            mock_metadata_entry
+        )
+
+        # Call the function to test
+        result = get_current_last_trained_row_id()
+
+        # Verify the correct row ID was returned
+        self.assertEqual(result, 789)
+
+    @patch("db.database_operations.get_database_session")
+    def test_get_no_last_trained_row_id(self, mock_get_session):
+        # Mock the session and its behavior
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Return None for no existing entry
+        mock_session.query(ModelTrainingMetadata).first.return_value = None
+
+        # Call the function to test
+        result = get_current_last_trained_row_id()
+
+        # Verify that 0 is returned when no metadata is found
+        self.assertEqual(result, 0)
+
+    @patch("db.database_operations.get_database_session")
+    def test_update_or_create_exception_handling(self, mock_get_session):
+        # Mock the session and its behavior
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Simulate an exception on commit
+        mock_session.commit.side_effect = Exception("Database error")
+
+        # Call the function to test
+        update_or_create_last_trained_row_id(123)
+
+        # Verify rollback was called
+        mock_session.rollback.assert_called_once()
+
+    @patch("db.database_operations.get_database_session")
+    def test_get_current_last_trained_row_id_exception_handling(self, mock_get_session):
+        # Mock the session and its behavior
+        mock_session = MagicMock()
+        mock_get_session.return_value = mock_session
+
+        # Simulate an exception during query
+        mock_session.query(ModelTrainingMetadata).first.side_effect = Exception(
+            "Database error"
+        )
+
+        # Call the function to test
+        result = get_current_last_trained_row_id()
+
+        # Verify that 0 is returned on exception
+        self.assertEqual(result, 0)
